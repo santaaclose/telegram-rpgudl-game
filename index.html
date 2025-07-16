@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Приключение</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes sparkle {
+            0%, 100% { opacity: 0; transform: scale(0.5) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1.2) rotate(180deg); }
+        }
+        
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(139, 92, 246, 0.5), 0 0 20px rgba(139, 92, 246, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.8), 0 0 40px rgba(139, 92, 246, 0.5); }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200px 0; }
+            100% { background-position: calc(200px + 100%) 0; }
+        }
+        
+        .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+        .animate-slideUp { animation: slideUp 0.6s ease-out; }
+        .animate-sparkle { animation: sparkle 1s ease-in-out infinite; }
+        .animate-glow { animation: glow 2s ease-in-out infinite; }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        .animate-shimmer { 
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            background-size: 200px 100%;
+            animation: shimmer 2s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 relative overflow-hidden">
+    <!-- Анимированный фон -->
+    <div class="absolute inset-0 opacity-20">
+        <div class="absolute top-10 left-10 w-24 h-24 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full animate-pulse blur-sm" style="animation-delay: 0s"></div>
+        <div class="absolute top-40 right-20 w-20 h-20 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full animate-pulse blur-sm" style="animation-delay: 1s"></div>
+        <div class="absolute bottom-40 left-20 w-16 h-16 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full animate-pulse blur-sm" style="animation-delay: 2s"></div>
+        <div class="absolute bottom-20 right-40 w-22 h-22 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full animate-pulse blur-sm" style="animation-delay: 3s"></div>
+        <div class="absolute top-1/2 left-1/2 w-32 h-32 bg-gradient-to-r from-violet-300 to-purple-300 rounded-full animate-pulse blur-lg opacity-30" style="animation-delay: 4s"></div>
+    </div>
+
+    <!-- Хедер -->
+    <div class="bg-white/90 backdrop-blur-md border-b border-slate-200/50 sticky top-0 z-30 shadow-lg">
+        <div class="flex items-center justify-between px-6 py-4">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <span class="text-white text-xl font-bold drop-shadow-md">⚔️</span>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-800 drop-shadow-sm">RPG Приключение</h1>
+                    <p class="text-sm text-slate-600">Уровень <span id="player-level">1</span></p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 bg-gradient-to-r from-yellow-100 to-yellow-50 px-4 py-2 rounded-xl shadow-md border border-yellow-200/50">
+                    <span class="text-yellow-600 text-lg">💰</span>
+                    <span class="font-bold text-yellow-700" id="player-gold">100</span>
+                </div>
+                <div class="flex items-center gap-2 bg-gradient-to-r from-blue-100 to-blue-50 px-4 py-2 rounded-xl shadow-md border border-blue-200/50">
+                    <span class="text-blue-600 text-lg">⭐</span>
+                    <span class="font-bold text-blue-700" id="player-xp">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Основной контент -->
+    <div class="container mx-auto px-4 py-6 pb-24">
+        <div id="main-content" class="space-y-8">
+            <!-- Главный экран -->
+            <div id="main-screen" class="space-y-8">
+                <!-- Статус игрока -->
+                <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg border border-slate-200/50 p-6 transition-all duration-300 relative animate-fadeIn">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent rounded-3xl pointer-events-none"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h2 class="text-2xl font-bold text-slate-800 drop-shadow-sm">Герой</h2>
+                                <div class="text-slate-600 font-medium">Уровень <span id="hero-level">1</span></div>
+                            </div>
+                            <div class="text-4xl animate-float drop-shadow-lg">⚔️</div>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex justify-between text-sm text-slate-600 mb-1">
+                                    <span>Опыт</span>
+                                    <span><span id="current-xp">0</span>/<span id="max-xp">100</span></span>
+                                </div>
+                                <div class="w-full bg-slate-200/50 rounded-full h-3 overflow-hidden shadow-inner">
+                                    <div id="xp-bar" class="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-500 ease-out rounded-full relative" style="width: 0%">
+                                        <div class="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <div class="flex justify-between text-sm text-slate-600 mb-1">
+                                    <span>Здоровье</span>
+                                    <span><span id="current-hp">100</span>/<span id="max-hp">100</span></span>
+                                </div>
+                                <div class="w-full bg-slate-200/50 rounded-full h-3 overflow-hidden shadow-inner">
+                                    <div id="hp-bar" class="h-full bg-gradient-to-r from-red-400 to-pink-500 transition-all duration-500 ease-out rounded-full relative" style="width: 100%">
+                                        <div class="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <div class="flex justify-between text-sm text-slate-600 mb-1">
+                                    <span>Энергия</span>
+                                    <span><span id="current-energy">10</span>/<span id="max-energy">10</span></span>
+                                </div>
+                                <div class="w-full bg-slate-200/50 rounded-full h-3 overflow-hidden shadow-inner">
+                                    <div id="energy-bar" class="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500 ease-out rounded-full relative" style="width: 100%">
+                                        <div class="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center bg-gradient-to-r from-yellow-50 to-yellow-100 p-3 rounded-xl">
+                                <span class="text-slate-600 font-medium">Золото</span>
+                                <span class="text-2xl font-bold text-yellow-600 drop-shadow-sm">💰 <span id="gold-display">100</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Основные действия -->
+                <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg border border-slate-200/50 p-6 transition-all duration-300 relative animate-fadeIn">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent rounded-3xl pointer-events-none"></div>
+                    <div class="relative z-10">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4">🎯 Действия</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button id="explore-btn" class="font-semibold rounded-2xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 relative overflow-hidden backdrop-blur-sm bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 shadow-lg hover:shadow-2xl border border-violet-400/20 px-6 py-3 text-base hover:scale-105 hover:-translate-y-0.5 h-16">
+                                <div class="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                                <span class="text-xl drop-shadow-sm">🚀</span>
+                                <span class="drop-shadow-sm">Исследовать</span>
+                            </button>
+                            
+                            <button id="inventory-btn" class="font-semibold rounded-2xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 relative overflow-hidden backdrop-blur-sm bg-gradient-to-r from-slate-100/80 to-slate-200/80 text-slate-700 hover:from-slate-200/90 hover:to-slate-300/90 shadow-md hover:shadow-lg border border-slate-300/40 px-6 py-3 text-base hover:scale-105 hover:-translate-y-0.5 h-16">
+                                <div class="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                                <span class="text-xl drop-shadow-sm">🎒</span>
+                                <span class="drop-shadow-sm">Инвентарь</span>
+                            </button>
+                            
+                            <button id="shop-btn" class="font-semibold rounded-2xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 relative overflow-hidden backdrop-blur-sm bg-gradient-to-r from-slate-100/80 to-slate-200/80 text-slate-700 hover:from-slate-200/90 hover:to-slate-300/90 shadow-md hover:shadow-lg border border-slate-300/40 px-6 py-3 text-base hover:scale-105 hover:-translate-y-0.5 h-16">
+                                <div class="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                                <span class="text-xl drop-shadow-sm">🛒</span>
+                                <span class="drop-shadow-sm">Магазин</span>
+                            </button>
+                            
+                            <button id="skills-btn" class="font-semibold rounded-2xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 relative overflow-hidden backdrop-blur-sm bg-gradient-to-r from-slate-100/80 to-slate-200/80 text-slate-700 hover:from-slate-200/90 hover:to-slate-300/90 shadow-md hover:shadow-lg border border-slate-300/40 px-6 py-3 text-base hover:scale-105 hover:-translate-y-0.5 h-16">
+                                <div class="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                                <span class="text-xl drop-shadow-sm">📊</span>
+                                <span class="drop-shadow-sm">Навыки</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Экран боя -->
+            <div id="battle-screen" class="space-y-8 hidden">
+                <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg border border-slate-200/50 p-6 transition-all duration-300 relative animate-fadeIn">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent rounded-3xl pointer-events-none"></div>
+                    <div class="relative z-10">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4">⚔️ Бой</h3>
+                        <div class="text-center">
+                            <div class="text-4xl mb-4">👹</div>
+                            <h4 class="text-xl font-bold mb-2" id="mob-name">Враг</h4>
+                            <div class="w-full bg-slate-200/50 rounded-full h-3 overflow-hidden shadow-inner">
+                                <div id="mob-hp-bar" class="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-500 ease-out rounded-full relative" style="width: 100%">
+                                    <div class="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
+                                </div>
+                            </div>
+                            <div class="text-sm text-slate-600 mt-2"><span id="mob-hp">0</span>/<span id="mob-max-hp">0</span> HP</div>
+                        </div>
+                        
+                        <div class="flex justify-center gap-4 mt-6">
+                            <button id="attack-btn" class="font-semibold rounded-2xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 relative overflow-hidden backdrop-blur-sm bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-2xl border border-red-400/20 px-6 py-3 text-base hover:scale-105 hover:-translate-y-0.5">
+                                <div class="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                                <span class="text-xl drop-shadow-sm">⚔️</span>
+                                <span class="drop-shadow-sm">Атаковать</span>
+                            </button>
+                            <button id="flee-btn" class="font-semibold rounded-2xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 relative overflow-hidden backdrop-blur-sm bg-gradient-to-r from-slate-100/80 to-slate-200/80 text-slate-700 hover:from-slate-200/90 hover:to-slate-300/90 shadow-md hover:shadow-lg border border-slate-300/40 px-6 py-3 text-base hover:scale-105 hover:-translate-y-0.5">
+                                <div class="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                                <span class="text-xl drop-shadow-sm">🏃</span>
+                                <span class="drop-shadow-sm">Сбежать</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Экран инвентаря -->
+            <div id="inventory-screen" class="space-y-8 hidden">
+                <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg border border-slate-200/50 p-6 transition-all duration-300 relative animate-fadeIn">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent rounded-3xl pointer-events-none"></div>
+                    <div class="relative z-10">
+                        <h3 class="text-lg font-bold text-slate-800 mb-6">🎒 Инвентарь</h3>
+                        <div id="inventory-content">
+                            <div class="text-center py-12 text-slate-400">
+                                <div class="text-6xl mb-4 animate-float">🎒</div>
+                                <div>Инвентарь пуст</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Экран магазина -->
+            <div id="shop-screen" class="space-y-8 hidden">
+                <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg border border-slate-200/50 p-6 transition-all duration-300 relative animate-fadeIn">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent rounded-3xl pointer-events-none"></div>
+                    <div class="relative z-10">
+                        <h3 class="text-lg font-bold text-slate-800 mb-6">🛒 Магазин</h3>
+                        <div id="shop-content" class="space-y-4">
+                            <!-- Товары будут добавлены через JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Экран навыков -->
+            <div id="skills-screen" class="space-y-8 hidden">
+                <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg border border-slate-200/50 p-6 transition-all duration-300 relative animate-fadeIn">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent rounded-3xl pointer-events-none"></div>
+                    <div class="relative z-10">
+                        <h3 class="text-lg font-bold text-slate-800 mb-6">🌟 Навыки</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="p-4 bg-red-50 rounded-xl">
+                                <div class="text-2xl mb-2">⚔️</div>
+                                <h4 class="font-bold text-red-700">Боевые навыки</h4>
+                                <p class="text-sm text-red-600">Увеличивают урон и критический шанс</p>
+                            </div>
+                            <div class="p-4 bg-blue-50 rounded-xl">
+                                <div class="text-2xl mb-2">🛡️</div>
+                                <h4 class="font-bold text-blue-700">Защитные навыки</h4>
+                                <p class="text-sm text-blue-600">Увеличивают здоровье и броню</p>
+                            </div>
+                            <div class="p-4 bg-green-50 rounded-xl">
+                                <div class="text-2xl mb-2">🏃</div>
+                                <h4 class="font-bold text-green-700">Навыки ловкости</h4>
+                                <p class="text-sm text-green-600">Увеличивают скорость и уклонение</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Экран квестов -->
+            <div id="quests-screen" class="space-y-8 hidden">
+                <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg border border-slate-200/50 p-6 transition-all duration-300 relative animate-fadeIn">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent rounded-3xl pointer-events-none"></div>
+                    <div class="relative z-10">
+                        <h3 class="text-lg font-bold text-slate-800 mb-6">📜 Квесты</h3>
+                        
+                        <!-- Вкладки квестов -->
+                        <div class="flex gap-2 mb-6">
+                            <button id="daily-quests-btn" class="px-4 py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium shadow-md">
+                                Ежедневные
+                            </button>
+                            <button id="main-quests-btn" class="px-4 py-2 bg-slate-200 text-slate-600 rounded-xl font-medium hover:bg-slate-300 transition-colors">
+                                Основные
+                            </button>
+                            <button id="achievements-btn" class="px-4 py-2 bg-slate-200 text-slate-600 rounded-xl font-medium hover:bg-slate-300 transition-colors">
+                                Достижения
+                            </button>
+                        </div>
+
+                        <!-- Контент квестов -->
+                        <div id="quests-content">
+                            <div id="daily-quests" class="space-y-4">
+                                <div class="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <h4 class="font-bold text-blue-800">Убить 3 монстров</h4>
+                                            <p class="text-sm text-blue-600">Победите 3 существа в бою</p>
+                                            <div class="mt-2 text-xs text-blue-500">
+                                                Прогресс: <span id="kill-progress">0</span>/3
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-sm font-medium text-blue-700">Награда:</div>
+                                            <div class="text-xs text-blue-600">⭐ 50 опыта</div>
+                                            <div class="text-xs text-blue-600">💰 25 золота</div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 w-full bg-blue-200 rounded-full h-2">
+                                        <div id="kill-progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="p-4 bg-green-50 rounded-xl border border-green-200">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <h4 class="font-bold text-green-800">Исследовать 5 раз</h4>
+                                            <p class="text-sm text-green-600">Совершите 5 исследований мира</p>
+                                            <div class="mt-2 text-xs text-green-500">
+                                                Прогресс: <span id="explore-progress">0</span>/5
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-sm font-medium text-green-700">Награда:</div>
+                                            <div class="text-xs text-green-600">⭐ 30 опыта</div>
+                                            <div class="text-xs text-green-600">💰 15 золота</div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 w-full bg-green-200 rounded-full h-2">
+                                        <div id="explore-progress-bar" class="bg-green-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <h4 class="font-bold text-yellow-800">Собрать 100 золота</h4>
+                                            <p class="text-sm text-yellow-600">Накопите 100 золотых монет</p>
+                                            <div class="mt-2 text-xs text-yellow-500">
+                                                Прогресс: <span id="gold-progress">0</span>/100
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-sm font-medium text-yellow-700">Награда:</div>
+                                            <div class="text-xs text-yellow-600">⭐ 40 опыта</div>
+                                            <div class="text-xs text-yellow-600">💰 20 золота</div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 w-full bg-yellow-200 rounded-full h-2">
+                                        <div id="gold-progress-bar" class="bg-yellow-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="main-quests" class="space-y-4 hidden">
+                                <div class="text-center py-12 text-slate-400">
+                                    <div class="text-6xl mb-4 animate-float">🏰</div>
+                                    <div class="text-lg font-medium mb-2">Основные квесты</div>
+                                    <div class="text-sm">Скоро появятся эпические приключения!</div>
+                                </div>
+                            </div>
+
+                            <div id="achievements" class="space-y-4 hidden">
+                                <div class="text-center py-12 text-slate-400">
+                                    <div class="text-6xl mb-4 animate-float">🏆</div>
+                                    <div class="text-lg font-medium mb-2">Достижения</div>
+                                    <div class="text-sm">Ваши подвиги будут отмечены здесь!</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Уведомления -->
+    <div id="notification" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-sm w-full mx-auto px-4 hidden">
+        <div class="bg-white/95 backdrop-blur-md text-slate-800 px-6 py-4 rounded-2xl shadow-2xl border border-slate-200/50 animate-slideUp font-medium text-center relative overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-r from-violet-100/50 via-transparent to-purple-100/50 animate-shimmer"></div>
+            <div class="relative z-10" id="notification-text"></div>
+        </div>
+    </div>
+
+    <!-- Летящие тексты -->
+    <div id="floating-texts"></div>
+
+    <!-- Эффекты -->
+    <div id="effects"></div>
+
+    <!-- Навигационная панель -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200/50 z-40 shadow-2xl">
+        <div class="flex justify-around items-center py-2 px-2 max-w-full">
+            <button id="nav-main" class="flex flex-col items-center py-1 px-2 rounded-xl transition-all duration-300 relative bg-gradient-to-t from-violet-100 to-violet-50 text-violet-700 shadow-lg min-w-0 flex-1">
+                <div class="absolute -top-1 left-1/2 transform -translate-x-1/2 w-4 h-1 bg-gradient-to-r from-violet-500 to-purple-500 rounded-full"></div>
+                <span class="text-lg mb-1 drop-shadow-sm">🏠</span>
+                <span class="text-xs font-medium truncate">Главная</span>
+            </button>
+            <button id="nav-inventory" class="flex flex-col items-center py-1 px-2 rounded-xl transition-all duration-300 relative text-slate-600 hover:text-slate-800 hover:bg-slate-100/80 min-w-0 flex-1">
+                <span class="text-lg mb-1 drop-shadow-sm">🎒</span>
+                <span class="text-xs font-medium truncate">Инвентарь</span>
+            </button>
+            <button id="nav-shop" class="flex flex-col items-center py-1 px-2 rounded-xl transition-all duration-300 relative text-slate-600 hover:text-slate-800 hover:bg-slate-100/80 min-w-0 flex-1">
+                <span class="text-lg mb-1 drop-shadow-sm">🛒</span>
+                <span class="text-xs font-medium truncate">Магазин</span>
+            </button>
+            <button id="nav-skills" class="flex flex-col items-center py-1 px-2 rounded-xl transition-all duration-300 relative text-slate-600 hover:text-slate-800 hover:bg-slate-100/80 min-w-0 flex-1">
+                <span class="text-lg mb-1 drop-shadow-sm">🌟</span>
+                <span class="text-xs font-medium truncate">Навыки</span>
+            </button>
+            <button id="nav-quests" class="flex flex-col items-center py-1 px-2 rounded-xl transition-all duration-300 relative text-slate-600 hover:text-slate-800 hover:bg-slate-100/80 min-w-0 flex-1">
+                <span class="text-lg mb-1 drop-shadow-sm">📜</span>
+                <span class="text-xs font-medium truncate">Квесты</span>
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Игровые данные
+        const MOBS = [
+            {name: "Гоблин", hp: 8, attack: 3, tier: "low", xp_reward: 5, gold_reward: 3},
+            {name: "Орк", hp: 15, attack: 5, tier: "mid", xp_reward: 8, gold_reward: 5},
+            {name: "Дракон", hp: 25, attack: 8, tier: "high", xp_reward: 15, gold_reward: 10}
+        ];
+
+        const EQUIPMENT_SLOTS = ["weapon", "armor", "helmet", "boots", "belt"];
+        const RARITIES = ["Обычный", "Редкий", "Эпический", "Легендарный"];
+
+        // Состояние игры
+        let gameState = {
+            player: {
+                username: 'Герой',
+                level: 1,
+                xp: 0,
+                gold: 100,
+                hp: 100,
+                maxHp: 100,
+                energy: 10,
+                maxEnergy: 10,
+                inventory: [],
+                equipped: {weapon: null, armor: null, helmet: null, boots: null, belt: null},
+                stats: {mobsKilled: 0, chestsOpened: 0, questsCompleted: 0}
+            },
+            currentTab: 'main',
+            battle: null,
+            shop: [],
+            quests: {
+                dailyQuests: [
+                    { id: 'kill', title: 'Убить 3 монстров', target: 3, progress: 0, reward: { xp: 50, gold: 25 } },
+                    { id: 'explore', title: 'Исследовать 5 раз', target: 5, progress: 0, reward: { xp: 30, gold: 15 } },
+                    { id: 'gold', title: 'Собрать 100 золота', target: 100, progress: 0, reward: { xp: 40, gold: 20 } }
+                ]
+            }
+        };
+
+        // Сохранение в localStorage
+        function saveGame() {
+            localStorage.setItem('rpgGame', JSON.stringify(gameState));
+        }
+
+        // Загрузка из localStorage
+        function loadGame() {
+            const saved = localStorage.getItem('rpgGame');
+            if (saved) {
+                gameState = {...gameState, ...JSON.parse(saved)};
+            }
+        }
+
+        // Генерация случайного предмета
+        function generateRandomItem(rarity) {
+            const prefixes = ['Острый', 'Мощный', 'Древний', 'Проклятый', 'Благословенный'];
+            const weapons = ['меч', 'топор', 'лук', 'посох', 'кинжал'];
+            const armors = ['броня', 'мантия', 'кольчуга', 'роба', 'жилет'];
+            
+            const type = Math.random() < 0.4 ? 'weapon' : EQUIPMENT_SLOTS[Math.floor(Math.random() * EQUIPMENT_SLOTS.length)];
+            const items = type === 'weapon' ? weapons : armors;
+            const name = `${prefixes[Math.floor(Math.random() * prefixes.length)]} ${items[Math.floor(Math.random() * items.length)]}`;
+            
+            const multiplier = {
+                'Обычный': 1, 'Редкий': 2, 'Эпический': 3, 'Легендарный': 5
+            }[rarity];
+            
+            return {
+                id: Date.now() + Math.random(),
+                name,
+                type,
+                rarity,
+                attack: type === 'weapon' ? Math.floor(Math.random() * 10 + 1) * multiplier : 0,
+                defense: type !== 'weapon' ? Math.floor(Math.random() * 8 + 1) * multiplier : 0,
+                price: Math.floor(Math.random() * 50 + 20) * multiplier
+            };
+        }
+
+        // Инициализация магазина
+        function initializeShop() {
+            if (gameState.shop.length === 0) {
+                const rarities = ['Обычный', 'Обычный', 'Редкий', 'Редкий', 'Эпический', 'Легендарный'];
+                for (let i = 0; i < 6; i++) {
+                    const rarity = rarities[Math.floor(Math.random() * rarities.length)];
+                    gameState.shop.push(generateRandomItem(rarity));
+                }
+            }
+        }
+
+        // Показать уведомление
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notification-text');
+            
+            notificationText.textContent = message;
+            notification.classList.remove('hidden');
+            
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Показать летящий текст
+        function showFloatingText(text, color = 'text-blue-500') {
+            const floatingTexts = document.getElementById('floating-texts');
+            const textElement = document.createElement('div');
+            textElement.className = `fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 ${color} font-bold text-2xl animate-slideUp pointer-events-none z-40`;
+            textElement.textContent = text;
+            
+            floatingTexts.appendChild(textElement);
+            
+            setTimeout(() => {
+                textElement.remove();
+            }, 2000);
+        }
+
+        // Показать эффект
+        function showEffect(type) {
+            const effects = document.getElementById('effects');
+            const effectElement = document.createElement('div');
+            effectElement.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-6xl animate-sparkle pointer-events-none z-40';
+            effectElement.textContent = '✨';
+            
+            effects.appendChild(effectElement);
+            
+            setTimeout(() => {
+                effectElement.remove();
+            }, 1000);
+        }
+
+        // Обновить прогресс квестов
+        function updateQuestProgress(type, amount = 1) {
+            const quest = gameState.quests.dailyQuests.find(q => q.id === type);
+            if (quest && quest.progress < quest.target) {
+                quest.progress = Math.min(quest.target, quest.progress + amount);
+                
+                // Проверить выполнение квеста
+                if (quest.progress >= quest.target) {
+                    showNotification(`Квест выполнен: ${quest.title}!`);
+                    gameState.player.xp += quest.reward.xp;
+                    gameState.player.gold += quest.reward.gold;
+                    showFloatingText(`+${quest.reward.xp} XP`, 'text-blue-500');
+                    showFloatingText(`+${quest.reward.gold} золота`, 'text-yellow-500');
+                    showEffect('sparkle');
+                }
+                
+                updateQuestsDisplay();
+                saveGame();
+            }
+        }
+
+        // Обновить отображение квестов
+        function updateQuestsDisplay() {
+            const quests = gameState.quests.dailyQuests;
+            
+            // Квест убийства
+            const killQuest = quests.find(q => q.id === 'kill');
+            if (killQuest) {
+                document.getElementById('kill-progress').textContent = killQuest.progress;
+                document.getElementById('kill-progress-bar').style.width = `${(killQuest.progress / killQuest.target) * 100}%`;
+            }
+            
+            // Квест исследования
+            const exploreQuest = quests.find(q => q.id === 'explore');
+            if (exploreQuest) {
+                document.getElementById('explore-progress').textContent = exploreQuest.progress;
+                document.getElementById('explore-progress-bar').style.width = `${(exploreQuest.progress / exploreQuest.target) * 100}%`;
+            }
+            
+            // Квест золота
+            const goldQuest = quests.find(q => q.id === 'gold');
+            if (goldQuest) {
+                document.getElementById('gold-progress').textContent = goldQuest.progress;
+                document.getElementById('gold-progress-bar').style.width = `${(goldQuest.progress / goldQuest.target) * 100}%`;
+            }
+        }
+
+        // Обновить UI
+        function updateUI() {
+            const player = gameState.player;
+            
+            // Обновить статы в хедере
+            document.getElementById('player-level').textContent = player.level;
+            document.getElementById('player-gold').textContent = player.gold;
+            document.getElementById('player-xp').textContent = player.xp;
+            
+            // Обновить статы героя
+            document.getElementById('hero-level').textContent = player.level;
+            document.getElementById('current-xp').textContent = player.xp;
+            document.getElementById('max-xp').textContent = player.level * 100;
+            document.getElementById('current-hp').textContent = player.hp;
+            document.getElementById('max-hp').textContent = player.maxHp;
+            document.getElementById('current-energy').textContent = player.energy;
+            document.getElementById('max-energy').textContent = player.maxEnergy;
+            document.getElementById('gold-display').textContent = player.gold;
+            
+            // Обновить прогресс-бары
+            document.getElementById('xp-bar').style.width = `${(player.xp / (player.level * 100)) * 100}%`;
+            document.getElementById('hp-bar').style.width = `${(player.hp / player.maxHp) * 100}%`;
+            document.getElementById('energy-bar').style.width = `${(player.energy / player.maxEnergy) * 100}%`;
+            
+            // Обновить кнопку исследования
+            const exploreBtn = document.getElementById('explore-btn');
+            if (player.energy <= 0) {
+                exploreBtn.disabled = true;
+                exploreBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                exploreBtn.classList.remove('hover:scale-105', 'hover:-translate-y-0.5');
+            } else {
+                exploreBtn.disabled = false;
+                exploreBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                exploreBtn.classList.add('hover:scale-105', 'hover:-translate-y-0.5');
+            }
+            
+            // Обновить квесты
+            updateQuestsDisplay();
+        }
+
+        // Обновить инвентарь
+        function updateInventory() {
+            const inventoryContent = document.getElementById('inventory-content');
+            
+            if (gameState.player.inventory.length === 0) {
+                inventoryContent.innerHTML = `
+                    <div class="text-center py-12 text-slate-400">
+                        <div class="text-6xl mb-4 animate-float">🎒</div>
+                        <div>Инвентарь пуст</div>
+                    </div>
+                `;
+            } else {
+                const itemsHTML = gameState.player.inventory.map((item, index) => `
+                    <div class="p-4 rounded-2xl bg-slate-50 animate-slideUp" style="animation-delay: ${index * 0.1}s">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-slate-800">${item.name}</div>
+                                <div class="text-sm text-slate-600">${item.type} | ${item.rarity}</div>
+                                <div class="text-xs text-slate-500">
+                                    ${item.attack > 0 ? `⚔️${item.attack} ` : ''}
+                                    ${item.defense > 0 ? `🛡️${item.defense}` : ''}
+                                </div>
+                            </div>
+                            <button onclick="useItem(${index})" class="font-semibold rounded-2xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 relative overflow-hidden backdrop-blur-sm bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 shadow-lg hover:shadow-2xl border border-violet-400/20 px-4 py-2 text-sm hover:scale-105 hover:-translate-y-0.5">
+                                <div class="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                                <span class="drop-shadow-sm">Надеть</span>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+                inventoryContent.innerHTML = `<div class="space-y-4">${itemsHTML}</div>`;
+            }
+        }
+
+        // Обновить магазин
+        function updateShop() {
+            const shopContent = document.getElementById('shop-content');
+            
+            const itemsHTML = gameState.shop.map((item, index) => `
+                <div class="p-4 rounded-2xl bg-slate-50 animate-slideUp" style="animation-delay: ${index * 0.1}s">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-slate-800">${item.name}</div>
+                            <div class="text-sm text-slate-600">${item.type} | ${item.rarity}</div>
+                            <div class="text-xs text-slate-500">
+                                ${item.attack > 0 ? `⚔️${item.attack} ` : ''}
+                                ${item.defense > 0 ? `🛡️${item.defense}` : ''}
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-bold text-yellow-600">${item.price}💰</div>
+                            <button onclick="buyItem(${index})" ${gameState.player.gold < item.price ? 'disabled' : ''} class="font-semibold rounded-2xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 relative overflow-hidden backdrop-blur-sm bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 shadow-lg hover:shadow-2xl border border-violet-400/20 px-4 py-2 text-sm hover:scale-105 hover:-translate-y-0.5 ${gameState.player.gold < item.price ? 'opacity-50 cursor-not-allowed' : ''}">
+                                <div class="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                                <span class="drop-shadow-sm">Купить</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            shopContent.innerHTML = itemsHTML;
+        }
+
+        // Купить предмет
+        function buyItem(index) {
+            const item = gameState.shop[index];
+            if (gameState.player.gold >= item.price) {
+                gameState.player.gold -= item.price;
+                gameState.player.inventory.push(item);
+                gameState.shop.splice(index, 1);
+                
+                showNotification(`Куплено: ${item.name}!`);
+                updateUI();
+                updateShop();
+                saveGame();
+            }
+        }
+
+        // Использовать предмет из инвентаря
+        function useItem(index) {
+            const item = gameState.player.inventory[index];
+            if (item.type === 'weapon' || EQUIPMENT_SLOTS.includes(item.type)) {
+                // Снять старый предмет если есть
+                if (gameState.player.equipped[item.type]) {
+                    gameState.player.inventory.push(gameState.player.equipped[item.type]);
+                }
+                
+                // Надеть новый предмет
+                gameState.player.equipped[item.type] = item;
+                gameState.player.inventory.splice(index, 1);
+                
+                showNotification(`Надето: ${item.name}!`);
+                showEffect('sparkle');
+                updateUI();
+                updateInventory();
+                saveGame();
+            }
+        }
+
+        // Главное действие - исследование
+        function handleMainAction() {
+            if (gameState.player.energy <= 0) {
+                showNotification('Недостаточно энергии!');
+                return;
+            }
+
+            const random = Math.random();
+            gameState.player.energy -= 1;
+            
+            // Обновить прогресс квеста исследования
+            updateQuestProgress('explore');
+            
+            if (random < 0.4) {
+                // Встреча с мобом
+                const mob = MOBS[Math.floor(Math.random() * MOBS.length)];
+                gameState.battle = { ...mob, mobHp: mob.hp };
+                switchTab('battle');
+                showNotification(`Встреча с ${mob.name}!`);
+            } else if (random < 0.7) {
+                // Найти золото
+                const gold = Math.floor(Math.random() * 30) + 10;
+                gameState.player.gold += gold;
+                showFloatingText(`+${gold} золота`, 'text-yellow-500');
+                showNotification(`Найдено ${gold} золота!`);
+                
+                // Обновить прогресс квеста золота
+                updateQuestProgress('gold', gold);
+            } else {
+                // Найти предмет
+                const rarity = RARITIES[Math.floor(Math.random() * RARITIES.length)];
+                const item = generateRandomItem(rarity);
+                gameState.player.inventory.push(item);
+                showFloatingText(`${item.name}`, 'text-purple-500');
+                showNotification(`Найден ${item.name}!`);
+                showEffect('sparkle');
+            }
+            
+            // Повышение уровня
+            const xpGained = Math.floor(Math.random() * 10) + 5;
+            gameState.player.xp += xpGained;
+            
+            const xpForNextLevel = gameState.player.level * 100;
+            if (gameState.player.xp >= xpForNextLevel) {
+                gameState.player.level += 1;
+                gameState.player.xp -= xpForNextLevel;
+                gameState.player.maxHp += 20;
+                gameState.player.hp = gameState.player.maxHp;
+                gameState.player.maxEnergy += 1;
+                gameState.player.energy = gameState.player.maxEnergy;
+                
+                showNotification(`Поздравляем! Достигнут ${gameState.player.level} уровень!`);
+            }
+            
+            if (xpGained > 0) {
+                showFloatingText(`⭐ +${xpGained} XP`, 'text-violet-500');
+            }
+            
+            updateUI();
+            saveGame();
+        }
+
+        // Обновить UI боя
+        function updateBattleUI() {
+            if (gameState.battle) {
+                document.getElementById('mob-name').textContent = gameState.battle.name;
+                document.getElementById('mob-hp').textContent = gameState.battle.mobHp;
+                document.getElementById('mob-max-hp').textContent = gameState.battle.hp;
+                document.getElementById('mob-hp-bar').style.width = `${(gameState.battle.mobHp / gameState.battle.hp) * 100}%`;
+            }
+        }
+
+        // Атака
+        function attack() {
+            if (!gameState.battle) return;
+            
+            const weaponBonus = gameState.player.equipped.weapon?.attack || 0;
+            const playerAttack = Math.floor(Math.random() * 20) + gameState.player.level * 2 + weaponBonus;
+            const mobAttack = Math.floor(Math.random() * gameState.battle.attack) + 1;
+            
+            gameState.battle.mobHp = Math.max(0, gameState.battle.mobHp - playerAttack);
+            
+            // Показать урон по мобу
+            showFloatingText(`-${playerAttack}`, 'text-red-500');
+            
+            if (gameState.battle.mobHp <= 0) {
+                // Победа
+                const xpGain = gameState.battle.xp_reward || 10;
+                const goldGain = gameState.battle.gold_reward || 5;
+                
+                gameState.player.xp += xpGain;
+                gameState.player.gold += goldGain;
+                gameState.player.stats.mobsKilled += 1;
+                
+                // Обновить прогресс квестов
+                updateQuestProgress('kill');
+                updateQuestProgress('gold', goldGain);
+                
+                // Окно победы
+                setTimeout(() => {
+                    showVictoryScreen(xpGain, goldGain);
+                }, 500);
+                
+                gameState.battle = null;
+            } else {
+                // Ответный удар моба
+                const armorBonus = (gameState.player.equipped.armor?.defense || 0) + 
+                                 (gameState.player.equipped.helmet?.defense || 0) + 
+                                 (gameState.player.equipped.boots?.defense || 0);
+                const actualDamage = Math.max(1, mobAttack - armorBonus);
+                
+                gameState.player.hp = Math.max(0, gameState.player.hp - actualDamage);
+                
+                // Показать урон по игроку
+                setTimeout(() => {
+                    showFloatingText(`-${actualDamage}`, 'text-orange-500');
+                }, 300);
+                
+                if (gameState.player.hp <= 0) {
+                    // Поражение
+                    gameState.player.hp = 1;
+                    setTimeout(() => {
+                        showDefeatScreen();
+                    }, 800);
+                    gameState.battle = null;
+                }
+            }
+            
+            updateUI();
+            updateBattleUI();
+            saveGame();
+        }
+
+        // Окно победы
+        function showVictoryScreen(xpGain, goldGain) {
+            const victoryHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+                    <div class="bg-white/95 backdrop-blur-md rounded-3xl p-8 max-w-sm mx-4 text-center animate-slideUp shadow-2xl border border-green-200">
+                        <div class="text-6xl mb-4 animate-float">🎉</div>
+                        <h2 class="text-2xl font-bold text-green-700 mb-4">Победа!</h2>
+                        <div class="space-y-2 mb-6">
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-600">Опыт:</span>
+                                <span class="text-blue-600 font-bold">+${xpGain}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-600">Золото:</span>
+                                <span class="text-yellow-600 font-bold">+${goldGain}</span>
+                            </div>
+                        </div>
+                        <button onclick="closeVictoryScreen()" class="font-semibold rounded-2xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 relative overflow-hidden backdrop-blur-sm bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-2xl border border-green-400/20 px-6 py-3 text-base hover:scale-105 hover:-translate-y-0.5 w-full">
+                            <div class="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                            <span class="drop-shadow-sm">Продолжить</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', victoryHTML);
+            showEffect('sparkle');
+        }
+
+        // Окно поражения
+        function showDefeatScreen() {
+            const defeatHTML = `
+                <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+                    <div class="bg-white/95 backdrop-blur-md rounded-3xl p-8 max-w-sm mx-4 text-center animate-slideUp shadow-2xl border border-red-200">
+                        <div class="text-6xl mb-4 animate-float">💀</div>
+                        <h2 class="text-2xl font-bold text-red-700 mb-4">Поражение!</h2>
+                        <p class="text-slate-600 mb-6">Ты чудом выжил, но потерял часть здоровья...</p>
+                        <button onclick="closeDefeatScreen()" class="font-semibold rounded-2xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 relative overflow-hidden backdrop-blur-sm bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-2xl border border-red-400/20 px-6 py-3 text-base hover:scale-105 hover:-translate-y-0.5 w-full">
+                            <div class="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+                            <span class="drop-shadow-sm">Вернуться</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', defeatHTML);
+        }
+
+        // Закрыть окно победы
+        function closeVictoryScreen() {
+            document.querySelector('.fixed.inset-0').remove();
+            switchTab('main');
+        }
+
+        // Закрыть окно поражения
+        function closeDefeatScreen() {
+            document.querySelector('.fixed.inset-0').remove();
+            switchTab('main');
+        }
+
+        // Сбежать
+        function flee() {
+            gameState.battle = null;
+            switchTab('main');
+            showNotification('Ты успешно сбежал!');
+        }
+
+        // Переключение вкладок
+        function switchTab(tab) {
+            // Скрыть все экраны
+            document.querySelectorAll('[id$="-screen"]').forEach(screen => {
+                screen.classList.add('hidden');
+            });
+            
+            // Показать нужный экран
+            document.getElementById(`${tab}-screen`).classList.remove('hidden');
+            
+            // Обновить навигацию
+            document.querySelectorAll('[id^="nav-"]').forEach(nav => {
+                nav.classList.remove('bg-gradient-to-t', 'from-violet-100', 'to-violet-50', 'text-violet-700', 'shadow-lg');
+                nav.classList.add('text-slate-600', 'hover:text-slate-800', 'hover:bg-slate-100/80');
+                nav.querySelector('div')?.remove();
+            });
+            
+            const activeNav = document.getElementById(`nav-${tab}`);
+            if (activeNav) {
+                activeNav.classList.remove('text-slate-600', 'hover:text-slate-800', 'hover:bg-slate-100/80');
+                activeNav.classList.add('bg-gradient-to-t', 'from-violet-100', 'to-violet-50', 'text-violet-700', 'shadow-lg');
+                
+                const indicator = document.createElement('div');
+                indicator.className = 'absolute -top-1 left-1/2 transform -translate-x-1/2 w-4 h-1 bg-gradient-to-r from-violet-500 to-purple-500 rounded-full';
+                activeNav.appendChild(indicator);
+            }
+            
+            gameState.currentTab = tab;
+            
+            // Обновить контент экрана
+            if (tab === 'inventory') {
+                updateInventory();
+            } else if (tab === 'shop') {
+                updateShop();
+            } else if (tab === 'battle') {
+                updateBattleUI();
+            } else if (tab === 'quests') {
+                updateQuestsDisplay();
+            }
+        }
+
+        // Автоматическое восстановление
+        setInterval(() => {
+            gameState.player.hp = Math.min(gameState.player.maxHp, gameState.player.hp + 1);
+            gameState.player.energy = Math.min(gameState.player.maxEnergy, gameState.player.energy + 1);
+            updateUI();
+            if (gameState.player.hp % 5 === 0 || gameState.player.energy % 5 === 0) {
+                saveGame();
+            }
+        }, 5000);
+
+        // Обработчики событий
+        document.getElementById('explore-btn').addEventListener('click', handleMainAction);
+        document.getElementById('attack-btn').addEventListener('click', attack);
+        document.getElementById('flee-btn').addEventListener('click', flee);
+        
+        // Навигация
+        document.getElementById('nav-main').addEventListener('click', () => switchTab('main'));
+        document.getElementById('nav-inventory').addEventListener('click', () => switchTab('inventory'));
+        document.getElementById('nav-shop').addEventListener('click', () => switchTab('shop'));
+        document.getElementById('nav-skills').addEventListener('click', () => switchTab('skills'));
+        document.getElementById('nav-quests').addEventListener('click', () => switchTab('quests'));
+        
+        // Кнопки в главном меню
+        document.getElementById('inventory-btn').addEventListener('click', () => switchTab('inventory'));
+        document.getElementById('shop-btn').addEventListener('click', () => switchTab('shop'));
+        document.getElementById('skills-btn').addEventListener('click', () => switchTab('skills'));
+
+        // Обработчики вкладок квестов
+        document.getElementById('daily-quests-btn').addEventListener('click', () => switchQuestTab('daily'));
+        document.getElementById('main-quests-btn').addEventListener('click', () => switchQuestTab('main'));
+        document.getElementById('achievements-btn').addEventListener('click', () => switchQuestTab('achievements'));
+
+        // Переключение вкладок квестов
+        function switchQuestTab(tab) {
+            // Сбросить все кнопки
+            document.querySelectorAll('#quests-screen button').forEach(btn => {
+                btn.classList.remove('bg-gradient-to-r', 'from-violet-500', 'to-purple-600', 'text-white');
+                btn.classList.add('bg-slate-200', 'text-slate-600');
+            });
+            
+            // Активировать текущую кнопку
+            const activeBtn = document.getElementById(`${tab}-quests-btn`) || document.getElementById(`${tab}-btn`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-gradient-to-r', 'from-violet-500', 'to-purple-600', 'text-white');
+                activeBtn.classList.remove('bg-slate-200', 'text-slate-600');
+            }
+            
+            // Скрыть все контенты
+            document.getElementById('daily-quests').classList.add('hidden');
+            document.getElementById('main-quests').classList.add('hidden');
+            document.getElementById('achievements').classList.add('hidden');
+            
+            // Показать нужный контент
+            if (tab === 'daily') {
+                document.getElementById('daily-quests').classList.remove('hidden');
+            } else if (tab === 'main') {
+                document.getElementById('main-quests').classList.remove('hidden');
+            } else if (tab === 'achievements') {
+                document.getElementById('achievements').classList.remove('hidden');
+            }
+        }
+
+        // Глобальные функции для onclick в HTML
+        window.buyItem = buyItem;
+        window.useItem = useItem;
+        window.closeVictoryScreen = closeVictoryScreen;
+        window.closeDefeatScreen = closeDefeatScreen;
+
+        // Инициализация игры
+        function initGame() {
+            loadGame();
+            initializeShop();
+            updateUI();
+            updateInventory();
+            updateShop();
+            switchTab('main');
+        }
+
+        // Запуск игры
+        initGame();
+    </script>
+</body>
+</html>
