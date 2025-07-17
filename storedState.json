@@ -1,0 +1,19 @@
+{
+  "munchkinHero": {
+    "name": "Новичок",
+    "level": 1,
+    "health": 70,
+    "maxHealth": 100,
+    "gold": 50,
+    "experience": 0,
+    "hand": [],
+    "equipped": {
+      "weapon": null,
+      "armor": null,
+      "boots": null,
+      "accessory": null
+    },
+    "curses": []
+  },
+  "munchkinDifficulty": "normal"
+}
