@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Munchkin Adventure</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+        }
+
+        .slide-in {
+            animation: slideInRight 0.2s ease-out;
+        }
+
+        .fade-out {
+            animation: fadeOut 0.3s ease-in 1.2s forwards;
+        }
+
+        .card-style {
+            background: rgba(255, 255, 255, 0.97);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            border-radius: 24px;
+        }
+
+        .text-on-gradient {
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .text-on-light {
+            color: #1f2937;
+            font-weight: 600;
+        }
+
+        .text-on-background {
+            color: white;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        .notification {
+            animation: slideInRight 0.2s ease-out, fadeOut 0.3s ease-in 1.2s forwards;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        // Game state management
+        class GameState {
+            constructor() {
+                this.hero = this.loadHero();
+                this.gameState = {
+                    currentEvent: null,
+                    doorAnimation: false,
+                    energyTimer: 0,
+                    battleMode: false,
+                    currentBattle: null,
+                    showSkills: false,
+                    showClassSelection: !this.hero.class,
+                    currentLocation: 'dungeon',
+                    weatherEffect: 'clear',
+                    timeOfDay: 'day',
+                    notifications: [],
+                    activeMinigame: null,
+                    combatLog: [],
+                    autoSaveTimer: 0
+                };
+                this.currentTab = 'main';
+                this.selectedSubTab = 'equipment';
+                this.init();
+            }
+
+            loadHero() {
+                const saved = localStorage.getItem('munchkin_hero');
+                if (saved) {
+                    return JSON.parse(saved);
+                }
+                return {
+                    name: 'Новичок',
+                    level: 1,
+                    class: null,
+                    strength: 5,
+                    magic: 3,
+                    agility: 4,
+                    health: 100,
+                    maxHealth: 100,
+                    energy: 10,
+                    maxEnergy: 10,
+                    gold: 100,
+                    experience: 0,
+                    experienceToNext: 100,
+                    skillPoints: 2,
+                    equipment: { weapon: null, armor: null, accessory: null },
+                    inventory: [],
+                    skills: {
+                        powerStrike: 0, toughness: 0, berserker: 0,
+                        fireball: 0, shield: 0, wisdom: 0,
+                        backstab: 0, dodge: 0, lockpick: 0,
+                        heal: 0, blessing: 0, smite: 0
+                    },
+                    achievements: [],
+                    currentQuest: null,
+                    pets: [],
+                    activePet: null,
+                    crafting: {
+                        materials: { wood: 5, stone: 3, herbs: 2, crystals: 1 },
+                        recipes: ['healthPotion', 'strengthPotion', 'magicSword']
+                    },
+                    fishing: { level: 1, experience: 0, bait: 3, catches: [] },
+                    prestige: {
+                        level: 0,
+                        bonuses: { goldMultiplier: 1.0, expMultiplier: 1.0, energyRegen: 1.0 }
+                    },
+                    settings: { soundEnabled: true, animationsEnabled: true, theme: 'light' }
+                };
+            }
+
+            saveHero() {
+                localStorage.setItem('munchkin_hero', JSON.stringify(this.hero));
+            }
+
+            init() {
+                this.startEnergyRegeneration();
+                this.startTimers();
+                this.render();
+            }
+
+            startEnergyRegeneration() {
+                setInterval(() => {
+                    if (this.hero.energy < this.hero.maxEnergy) {
+                        this.hero.energy = Math.min(this.hero.energy + 1, this.hero.maxEnergy);
+                        this.saveHero();
+                        this.render();
+                    }
+                }, 30000);
+            }
+
+            startTimers() {
+                setInterval(() => {
+                    if (this.hero.energy < this.hero.maxEnergy) {
+                        this.gameState.energyTimer = this.gameState.energyTimer > 0 ? this.gameState.energyTimer - 1 : 30;
+                        this.render();
+                    }
+                }, 1000);
+
+                setInterval(() => {
+                    const weathers = ['clear', 'rain', 'storm', 'fog'];
+                    const times = ['day', 'night'];
+                    this.gameState.weatherEffect = weathers[Math.floor(Math.random() * weathers.length)];
+                    this.gameState.timeOfDay = times[Math.floor(Math.random() * times.length)];
+                    this.render();
+                }, 300000);
+            }
+
+            addNotification(message, type = 'info') {
+                const notification = {
+                    id: Date.now(),
+                    message,
+                    type,
+                    timestamp: Date.now()
+                };
+                
+                this.gameState.notifications.push(notification);
+                this.gameState.notifications = this.gameState.notifications.slice(-3);
+                
+                setTimeout(() => {
+                    this.gameState.notifications = this.gameState.notifications.filter(n => n.id !== notification.id);
+                    this.render();
+                }, 1500);
+                
+                this.render();
+            }
+
+            selectClass(classId) {
+                const selectedClass = this.heroClasses[classId];
+                this.hero.class = classId;
+                this.hero.name = selectedClass.name;
+                this.hero.strength = selectedClass.baseStats.strength;
+                this.hero.magic = selectedClass.baseStats.magic;
+                this.hero.agility = selectedClass.baseStats.agility;
+                this.gameState.showClassSelection = false;
+                this.saveHero();
+                this.addNotification(`🎭 ${selectedClass.name}`, 'success');
+            }
+
+            kickDoor() {
+                if (this.hero.energy <= 0) {
+                    this.addNotification('Недостаточно энергии!', 'warning');
+                    return;
+                }
+
+                this.gameState.doorAnimation = true;
+                this.hero.energy -= 1;
+                this.saveHero();
+
+                setTimeout(() => {
+                    const currentLocation = this.locations[this.gameState.currentLocation];
+                    const possibleEvents = currentLocation.events;
+                    const eventType = possibleEvents[Math.floor(Math.random() * possibleEvents.length)];
+                    
+                    let eventData;
+                    if (this.events[eventType]) {
+                        eventData = { ...this.events[eventType][Math.floor(Math.random() * this.events[eventType].length)] };
+                    } else {
+                        eventData = { ...this.events.treasure[0] };
+                    }
+
+                    this.gameState.currentEvent = { type: eventType, data: eventData };
+                    this.gameState.doorAnimation = false;
+                    this.gameState.battleMode = eventType === 'monster';
+                    this.gameState.combatLog = [];
+                    this.render();
+                }, 1200);
+                
+                this.render();
+            }
+
+            handleBattleAction(action) {
+                if (!this.gameState.currentEvent) return;
+                
+                const { data } = this.gameState.currentEvent;
+                const actionData = this.battleActions[action];
+                
+                if (this.hero.energy < actionData.cost) {
+                    this.addNotification('Недостаточно энергии для этого действия!', 'warning');
+                    return;
+                }
+
+                this.hero.energy -= actionData.cost;
+                
+                let damage = 0;
+                let logMessage = '';
+                
+                if (action === 'attack') {
+                    damage = this.hero.strength + Math.floor(Math.random() * 5);
+                    logMessage = `Вы нанесли ${damage} урона!`;
+                } else if (action === 'magic') {
+                    damage = this.hero.magic + Math.floor(Math.random() * 5);
+                    logMessage = `Магическая атака нанесла ${damage} урона!`;
+                } else if (action === 'special') {
+                    damage = this.hero.agility + Math.floor(Math.random() * 5);
+                    logMessage = `Особая атака нанесла ${damage} урона!`;
+                } else if (action === 'heal') {
+                    const healAmount = Math.floor(this.hero.magic / 2) + 10;
+                    this.hero.health = Math.min(this.hero.health + healAmount, this.hero.maxHealth);
+                    logMessage = `Вы восстановили ${healAmount} здоровья!`;
+                }
+
+                if (damage > 0) {
+                    data.health -= damage;
+                    
+                    if (data.weakness === 'magic' && action === 'magic') {
+                        data.health -= 10;
+                        logMessage += ' Критический удар!';
+                    } else if (data.weakness === 'strength' && action === 'attack') {
+                        data.health -= 10;
+                        logMessage += ' Критический удар!';
+                    } else if (data.weakness === 'agility' && action === 'special') {
+                        data.health -= 10;
+                        logMessage += ' Критический удар!';
+                    }
+                }
+
+                this.gameState.combatLog.push(logMessage);
+                
+                if (data.health <= 0) {
+                    this.hero.gold += data.reward.gold || 0;
+                    this.hero.experience += data.reward.exp || 0;
+                    this.checkLevelUp();
+                    this.addNotification(`🎯 +${data.reward.gold || 0}💰 +${data.reward.exp || 0}✨`, 'success');
+                    this.gameState.currentEvent.result = 'victory';
+                    this.gameState.battleMode = false;
+                } else {
+                    const monsterDamage = Math.floor(Math.random() * data.strength) + 5;
+                    this.hero.health = Math.max(0, this.hero.health - monsterDamage);
+                    this.gameState.combatLog.push(`${data.name} нанёс вам ${monsterDamage} урона!`);
+                    
+                    if (this.hero.health <= 0) {
+                        this.addNotification('💔 Поражение! -50% золота', 'error');
+                        this.hero.gold = Math.floor(this.hero.gold / 2);
+                        this.hero.health = this.hero.maxHealth;
+                        this.gameState.currentEvent.result = 'defeat';
+                        this.gameState.battleMode = false;
+                    }
+                }
+
+                this.saveHero();
+                this.render();
+            }
+
+            checkLevelUp() {
+                if (this.hero.experience >= this.hero.experienceToNext) {
+                    this.hero.level += 1;
+                    this.hero.experience -= this.hero.experienceToNext;
+                    this.hero.experienceToNext += 50;
+                    this.hero.skillPoints += 2;
+                    this.hero.maxHealth += 20;
+                    this.hero.health += 20;
+                    this.addNotification(`🎉 Уровень ${this.hero.level}! +2 очка навыков`, 'success');
+                }
+            }
+
+            buyItem(itemId) {
+                const item = [...this.items.weapons, ...this.items.armor, ...this.items.potions].find(i => i.id === itemId);
+                if (!item) return;
+                
+                if (this.hero.gold < item.price) {
+                    this.addNotification('Недостаточно золота!', 'warning');
+                    return;
+                }
+
+                this.hero.gold -= item.price;
+                this.hero.inventory.push({ id: itemId, quantity: 1 });
+                this.saveHero();
+                this.addNotification(`🛒 ${item.name}`, 'success');
+            }
+
+            equipItem(itemId) {
+                const item = [...this.items.weapons, ...this.items.armor].find(i => i.id === itemId);
+                if (!item) return;
+
+                if (this.hero.level < (item.level || 1)) {
+                    this.addNotification(`Требуется ${item.level || 1} уровень для этого предмета`, 'warning');
+                    return;
+                }
+
+                const slot = this.items.weapons.includes(item) ? 'weapon' : 'armor';
+                this.hero.equipment[slot] = itemId;
+                this.hero.inventory = this.hero.inventory.filter(i => i.id !== itemId);
+                this.saveHero();
+                this.addNotification(`⚔️ ${item.name}`, 'success');
+            }
+
+            useItem(itemId) {
+                const item = this.hero.inventory.find(i => i.id === itemId);
+                if (!item) return;
+
+                const itemData = this.items.potions.find(p => p.id === itemId);
+                if (!itemData) return;
+
+                if (itemData.effect === 'heal') {
+                    this.hero.health = Math.min(this.hero.health + itemData.value, this.hero.maxHealth);
+                    this.addNotification(`🧪 +${itemData.value}❤️`, 'success');
+                } else if (itemData.effect === 'energy') {
+                    this.hero.energy = Math.min(this.hero.energy + itemData.value, this.hero.maxEnergy);
+                    this.addNotification(`🧪 +${itemData.value}⚡`, 'success');
+                }
+
+                this.hero.inventory = this.hero.inventory.filter(i => i.id !== itemId);
+                this.saveHero();
+            }
+
+            upgradeSkill(skill) {
+                if (this.hero.skillPoints <= 0) {
+                    this.addNotification('Недостаточно очков навыков!', 'warning');
+                    return;
+                }
+
+                this.hero.skillPoints -= 1;
+                this.hero.skills[skill] = (this.hero.skills[skill] || 0) + 1;
+                this.saveHero();
+                this.addNotification(`⭐ ${skill} ↑`, 'success');
+            }
+
+            handleEvent(eventResult = null) {
+                if (eventResult && typeof eventResult === 'object') {
+                    this.hero.gold += eventResult.gold || 0;
+                    this.hero.experience += eventResult.exp || 0;
+                    this.checkLevelUp();
+                    this.saveHero();
+                }
+                
+                this.gameState.currentEvent = null;
+                this.gameState.battleMode = false;
+                this.render();
+            }
+
+            formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            getTotalStats() {
+                let totalStats = {
+                    strength: this.hero.strength,
+                    magic: this.hero.magic,
+                    agility: this.hero.agility,
+                    health: this.hero.maxHealth
+                };
+
+                // Add equipment bonuses
+                Object.values(this.hero.equipment).forEach(itemId => {
+                    if (itemId) {
+                        const item = [...this.items.weapons, ...this.items.armor].find(i => i.id === itemId);
+                        if (item && item.stats) {
+                            Object.entries(item.stats).forEach(([stat, value]) => {
+                                if (totalStats[stat] !== undefined) {
+                                    totalStats[stat] += value;
+                                }
+                            });
+                        }
+                    }
+                });
+
+                return totalStats;
+            }
+
+            render() {
+                const app = document.getElementById('app');
+                app.innerHTML = this.getHTML();
+                this.attachEventListeners();
+            }
+
+            getHTML() {
+                if (this.gameState.showClassSelection) {
+                    return this.getClassSelectionHTML();
+                }
+
+                return `
+                    <div class="w-full h-screen relative flex flex-col overflow-hidden" 
+                         style="background: ${this.locations[this.gameState.currentLocation].background}">
+                        
+                        ${this.getNotificationsHTML()}
+                        ${this.getHeroProfileHTML()}
+                        
+                        <div class="flex-1 px-3 flex flex-col items-center justify-start overflow-auto">
+                            <div class="bg-black bg-opacity-20 backdrop-blur-sm rounded-full px-3 py-1 mb-2">
+                                <div class="text-xs text-on-background">
+                                    👈 Свайп для навигации 👉
+                                </div>
+                            </div>
+                            
+                            <div class="w-full flex-1 transition-all duration-300 ease-out">
+                                ${this.getTabContentHTML()}
+                            </div>
+                        </div>
+                        
+                        ${this.getNavigationHTML()}
+                    </div>
+                `;
+            }
+
+            getNotificationsHTML() {
+                if (this.gameState.notifications.length === 0) return '';
+
+                return `
+                    <div class="fixed top-20 right-2 z-50 space-y-1 max-w-xs">
+                        ${this.gameState.notifications.map(notification => `
+                            <div class="notification p-2 rounded-lg text-white text-xs font-medium shadow-lg backdrop-blur-sm ${
+                                notification.type === 'success' ? 'bg-green-500 bg-opacity-90' :
+                                notification.type === 'warning' ? 'bg-orange-500 bg-opacity-90' :
+                                notification.type === 'error' ? 'bg-red-500 bg-opacity-90' :
+                                'bg-blue-500 bg-opacity-90'
+                            }">
+                                ${notification.message}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            getClassSelectionHTML() {
+                return `
+                    <div class="w-full h-screen bg-gradient-to-b from-blue-500 to-purple-600 flex items-center justify-center p-6">
+                        <div class="card-style p-6 max-w-md w-full">
+                            <h2 class="text-xl font-bold text-on-light mb-6 text-center">Выбери класс героя</h2>
+                            <div class="grid grid-cols-2 gap-4">
+                                ${Object.entries(this.heroClasses).map(([id, classInfo]) => `
+                                    <button onclick="game.selectClass('${id}')" 
+                                            class="p-4 rounded-2xl border-2 transition-all duration-300 hover:scale-105 active:scale-95"
+                                            style="background: linear-gradient(to bottom right, ${classInfo.color.replace('from-', '').replace('to-', ', ')})">
+                                        <div class="text-3xl mb-2">${classInfo.icon}</div>
+                                        <div class="text-on-gradient text-sm">${classInfo.name}</div>
+                                        <div class="text-on-gradient text-xs mt-1 opacity-90">${classInfo.description}</div>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            getHeroProfileHTML() {
+                const currentClass = this.heroClasses[this.hero.class] || this.heroClasses.warrior;
+                
+                return `
+                    <div class="p-3 flex-shrink-0">
+                        <div class="card-style p-3">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center text-xl shadow-lg relative">
+                                    ${currentClass.icon}
+                                </div>
+                                
+                                <div class="flex-1">
+                                    <h2 class="text-lg font-bold text-on-light">${this.hero.name}</h2>
+                                    <div class="flex items-center space-x-2">
+                                        <div class="inline-block bg-gradient-to-r from-blue-500 to-purple-600 text-on-gradient px-4 py-1.5 rounded-full text-xs">
+                                            Уровень ${this.hero.level}
+                                        </div>
+                                    </div>
+                                    
+                                    ${this.hero.skillPoints > 0 ? `
+                                        <div class="mt-1 text-xs text-orange-500 font-semibold">
+                                            +${this.hero.skillPoints} очков навыков!
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                
+                                <div class="text-right space-y-1">
+                                    <div class="flex items-center space-x-2 text-sm text-on-light">
+                                        <span class="text-yellow-500">💰</span>
+                                        <span class="font-bold">${this.hero.gold}</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2 text-sm text-on-light">
+                                        <span class="text-purple-500">✨</span>
+                                        <span class="font-bold">${this.hero.experience}</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2 text-sm text-on-light">
+                                        <span class="text-green-500">🏆</span>
+                                        <span class="font-bold">${this.hero.achievements.length}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            ${this.getStatsHTML()}
+                        </div>
+                    </div>
+                `;
+            }
+
+            getStatsHTML() {
+                const totalStats = this.getTotalStats();
+                
+                return `
+                    <div class="mt-4 space-y-2">
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="text-center p-2 bg-white bg-opacity-90 rounded-xl border border-gray-200">
+                                <div class="text-xs text-gray-600">⚔️ Сила</div>
+                                <div class="font-bold text-sm text-on-light">${totalStats.strength}</div>
+                            </div>
+                            <div class="text-center p-2 bg-white bg-opacity-90 rounded-xl border border-gray-200">
+                                <div class="text-xs text-gray-600">🔮 Магия</div>
+                                <div class="font-bold text-sm text-on-light">${totalStats.magic}</div>
+                            </div>
+                            <div class="text-center p-2 bg-white bg-opacity-90 rounded-xl border border-gray-200">
+                                <div class="text-xs text-gray-600">🏃 Ловкость</div>
+                                <div class="font-bold text-sm text-on-light">${totalStats.agility}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xs text-on-light w-12 bg-white bg-opacity-80 rounded-lg px-1">❤️</span>
+                            <div class="flex-1 bg-white bg-opacity-90 rounded-xl h-3 overflow-hidden border border-gray-200">
+                                <div class="bg-gradient-to-r from-red-500 to-pink-600 h-full rounded-xl transition-all duration-500 ease-out shadow-sm"
+                                     style="width: ${(this.hero.health / this.hero.maxHealth) * 100}%"></div>
+                            </div>
+                            <span class="text-xs font-bold text-on-light min-w-max bg-white bg-opacity-80 rounded-lg px-2 py-0.5">
+                                ${this.hero.health}/${this.hero.maxHealth}
+                            </span>
+                        </div>
+                        
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xs text-on-light w-12 bg-white bg-opacity-80 rounded-lg px-1">⚡</span>
+                            <div class="flex-1 bg-white bg-opacity-90 rounded-xl h-3 overflow-hidden border border-gray-200">
+                                <div class="bg-gradient-to-r from-blue-500 to-purple-600 h-full rounded-xl transition-all duration-500 ease-out shadow-sm"
+                                     style="width: ${(this.hero.energy / this.hero.maxEnergy) * 100}%"></div>
+                            </div>
+                            <div class="flex items-center space-x-1">
+                                <span class="text-xs font-bold text-on-light min-w-max bg-white bg-opacity-80 rounded-lg px-2 py-0.5">
+                                    ${this.hero.energy}/${this.hero.maxEnergy}
+                                </span>
+                                ${this.hero.energy < this.hero.maxEnergy ? `
+                                    <span class="text-xs text-on-light bg-white bg-opacity-90 px-2 py-0.5 rounded-lg font-bold">
+                                        ${this.formatTime(this.gameState.energyTimer)}
+                                    </span>
+                                ` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xs text-on-light w-12 bg-white bg-opacity-80 rounded-lg px-1">📈</span>
+                            <div class="flex-1 bg-white bg-opacity-90 rounded-xl h-3 overflow-hidden border border-gray-200">
+                                <div class="bg-gradient-to-r from-purple-500 to-blue-600 h-full rounded-xl transition-all duration-500 ease-out shadow-sm"
+                                     style="width: ${(this.hero.experience / this.hero.experienceToNext) * 100}%"></div>
+                            </div>
+                            <span class="text-xs font-bold text-on-light min-w-max bg-white bg-opacity-80 rounded-lg px-2 py-0.5">
+                                ${this.hero.experience}/${this.hero.experienceToNext}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            getTabContentHTML() {
+                switch (this.currentTab) {
+                    case 'main': return this.getMainTabHTML();
+                    case 'skills': return this.getSkillsTabHTML();
+                    case 'inventory': return this.getInventoryTabHTML();
+                    case 'shop': return this.getShopTabHTML();
+                    case 'world': return this.getWorldTabHTML();
+                    case 'pets': return this.getPetsTabHTML();
+                    case 'craft': return this.getCraftTabHTML();
+                    case 'achievements': return this.getAchievementsTabHTML();
+                    default: return this.getMainTabHTML();
+                }
+            }
+
+            getMainTabHTML() {
+                const currentLocation = this.locations[this.gameState.currentLocation];
+                
+                if (this.gameState.currentEvent) {
+                    return `
+                        <div class="text-center p-6 max-w-sm mx-auto card-style">
+                            ${this.getEventDisplayHTML()}
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="text-center">
+                        <div class="mb-4 p-3 card-style">
+                            <div class="flex items-center justify-center space-x-2 mb-2">
+                                <span class="text-xl">${currentLocation.icon}</span>
+                                <h3 class="text-base font-bold text-on-light">${currentLocation.name}</h3>
+                            </div>
+                            <p class="text-xs text-gray-600 text-center">${currentLocation.description}</p>
+                            
+                            <div class="flex justify-center space-x-3 mt-2">
+                                <div class="flex items-center space-x-1">
+                                    <span class="text-sm">${this.weatherEffects[this.gameState.weatherEffect].icon}</span>
+                                    <span class="text-xs text-on-light">${this.weatherEffects[this.gameState.weatherEffect].name}</span>
+                                </div>
+                                <div class="flex items-center space-x-1">
+                                    <span class="text-sm">${this.gameState.timeOfDay === 'day' ? '☀️' : '🌙'}</span>
+                                    <span class="text-xs text-on-light">${this.gameState.timeOfDay === 'day' ? 'День' : 'Ночь'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            ${this.getAdventurePortalHTML()}
+                            
+                            <button onclick="game.kickDoor()" 
+                                    ${this.hero.energy <= 0 || this.gameState.doorAnimation ? 'disabled' : ''}
+                                    class="px-6 py-3 rounded-2xl font-semibold transition-all duration-300 text-sm ${
+                                        this.hero.energy <= 0 || this.gameState.doorAnimation
+                                            ? 'bg-gray-300 cursor-not-allowed text-gray-500' 
+                                            : 'bg-gradient-to-r from-blue-500 to-purple-600 text-on-gradient hover:scale-105 active:scale-95 shadow-lg'
+                                    }">
+                                ${this.gameState.doorAnimation ? '✨ Исследование...' : '🚪 Исследовать (1 ⚡)'}
+                            </button>
+                            
+                            <div class="grid grid-cols-2 gap-3 mt-4">
+                                <button onclick="game.currentTab = 'shop'; game.render()" 
+                                        class="p-3 rounded-xl font-medium transition-all duration-300 bg-gradient-to-r from-green-400 to-blue-500 text-on-gradient hover:scale-105 active:scale-95">
+                                    🎣 Рыбалка
+                                </button>
+                                <button onclick="game.currentTab = 'shop'; game.render()" 
+                                        class="p-3 rounded-xl font-medium transition-all duration-300 bg-gradient-to-r from-orange-400 to-red-500 text-on-gradient hover:scale-105 active:scale-95">
+                                    🛒 Магазин
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            getAdventurePortalHTML() {
+                return `
+                    <div class="mb-4 transition-all duration-1000 ${this.gameState.doorAnimation ? 'scale-105' : 'scale-100'}">
+                        <div class="relative w-40 h-52 mx-auto" 
+                             style="filter: ${this.gameState.doorAnimation ? 'drop-shadow(0 0 30px rgba(255, 100, 0, 0.9))' : 'drop-shadow(0 30px 60px rgba(0, 0, 0, 0.3))'}">
+                            
+                            ${[...Array(5)].map((_, i) => `
+                                <div class="absolute w-full h-full rounded-2xl"
+                                     style="transform: translateX(${i * 3}px) translateY(${i * 2}px) rotate(${i * 0.5}deg);
+                                            z-index: ${10 - i};
+                                            background: linear-gradient(to bottom, ${i === 0 ? '#3b82f6' : '#6366f1'} 0%, ${i === 0 ? '#6366f1' : '#8b5cf6'} 100%);
+                                            opacity: ${i === 0 ? 1 : 0.8 - i * 0.15};
+                                            border: ${i === 0 ? '3px solid #60a5fa' : '2px solid #818cf8'};
+                                            box-shadow: ${i === 0 ? '0 15px 35px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.1)' : '0 5px 15px rgba(0, 0, 0, 0.2)'}"
+                                >
+                                    ${i === 0 ? `
+                                        <div class="absolute inset-3 border-2 border-yellow-600 rounded-xl">
+                                            <div class="absolute top-3 left-3 w-3 h-3 border-l-2 border-t-2 border-white rounded-tl-xl opacity-60"></div>
+                                            <div class="absolute top-3 right-3 w-3 h-3 border-r-2 border-t-2 border-white rounded-tr-xl opacity-60"></div>
+                                            <div class="absolute bottom-3 left-3 w-3 h-3 border-l-2 border-b-2 border-white rounded-bl-xl opacity-60"></div>
+                                            <div class="absolute bottom-3 right-3 w-3 h-3 border-r-2 border-b-2 border-white rounded-br-xl opacity-60"></div>
+                                            
+                                            <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-3xl"
+                                                 style="filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3)); text-shadow: 0 0 15px rgba(255, 255, 255, 0.3)">
+                                                🚪
+                                            </div>
+                                            
+                                            <div class="absolute top-6 left-1/2 transform -translate-x-1/2 text-xs font-semibold text-white opacity-80 tracking-wider">
+                                                ADVENTURE
+                                            </div>
+                                            
+                                            <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-xs font-semibold text-white opacity-80 tracking-wider">
+                                                PORTAL
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            getEventDisplayHTML() {
+                const { type, data } = this.gameState.currentEvent;
+                const eventIcons = {
+                    monster: '👹', puzzle: '🧩', treasure: '💎', trader: '🧙‍♂️',
+                    shrine: '⛩️', fishing: '🎣', quest: '📜', arena: '⚔️'
+                };
+
+                let content = `
+                    <div class="space-y-4">
+                        <div class="text-4xl">${eventIcons[type] || '❓'}</div>
+                        <h3 class="text-xl font-bold text-gray-800">${data.name}</h3>
+                `;
+
+                if (type === 'monster' && this.gameState.battleMode) {
+                    content += `
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-red-500 h-3 rounded-full transition-all duration-300"
+                                 style="width: ${(data.health / data.maxHealth) * 100}%"></div>
+                        </div>
+                        <div class="text-xs text-gray-500 text-center">❤️ ${data.health}/${data.maxHealth}</div>
+                        
+                        ${this.gameState.combatLog && this.gameState.combatLog.length > 0 ? `
+                            <div class="bg-gray-100 rounded-lg p-3 max-h-24 overflow-y-auto">
+                                <div class="text-xs space-y-1">
+                                    ${this.gameState.combatLog.slice(-3).map(log => `<div class="text-gray-700">${log}</div>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="text-sm text-gray-600">Выбери действие:</div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="game.handleBattleAction('attack')" 
+                                    ${this.hero.energy < 1 ? 'disabled' : ''}
+                                    class="p-3 rounded-xl font-medium transition-all duration-200 ${this.hero.energy >= 1 ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}">
+                                ⚔️ Атака (1⚡)
+                            </button>
+                            <button onclick="game.handleBattleAction('magic')" 
+                                    ${this.hero.energy < 2 ? 'disabled' : ''}
+                                    class="p-3 rounded-xl font-medium transition-all duration-200 ${this.hero.energy >= 2 ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}">
+                                🔮 Магия (2⚡)
+                            </button>
+                            <button onclick="game.handleBattleAction('special')" 
+                                    ${this.hero.energy < 3 ? 'disabled' : ''}
+                                    class="p-3 rounded-xl font-medium transition-all duration-200 ${this.hero.energy >= 3 ? 'bg-purple-500 text-white hover:bg-purple-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}">
+                                ✨ Особое (3⚡)
+                            </button>
+                            <button onclick="game.handleBattleAction('heal')" 
+                                    ${this.hero.energy < 2 ? 'disabled' : ''}
+                                    class="p-3 rounded-xl font-medium transition-all duration-200 ${this.hero.energy >= 2 ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}">
+                                ❤️ Лечение (2⚡)
+                            </button>
+                        </div>
+                    `;
+                } else if (type === 'treasure') {
+                    content += `
+                        <div class="text-sm text-gray-600">
+                            Найдено: ${data.reward.gold ? `${data.reward.gold} 💰` : ''} ${data.reward.exp ? `${data.reward.exp} ✨` : ''}
+                        </div>
+                        <button onclick="game.handleEvent({gold: ${data.reward.gold || 0}, exp: ${data.reward.exp || 0}})" 
+                                class="w-full py-3 px-6 rounded-full font-bold text-white transition-all duration-200 bg-gradient-to-r from-yellow-400 to-green-500 hover:scale-105 active:scale-95">
+                            Взять сокровище
+                        </button>
+                    `;
+                } else {
+                    content += `
+                        <button onclick="game.handleEvent()" 
+                                class="w-full py-3 px-6 rounded-full font-bold text-white transition-all duration-200 bg-gradient-to-r from-blue-500 to-purple-600 hover:scale-105 active:scale-95">
+                            Продолжить
+                        </button>
+                    `;
+                }
+
+                content += '</div>';
+                return content;
+            }
+
+            getSkillsTabHTML() {
+                const currentClass = this.heroClasses[this.hero.class] || this.heroClasses.warrior;
+                const classSkills = Object.entries(this.hero.skills).filter(([skill]) => {
+                    if (this.hero.class === 'warrior') return ['powerStrike', 'toughness', 'berserker'].includes(skill);
+                    if (this.hero.class === 'mage') return ['fireball', 'shield', 'wisdom'].includes(skill);
+                    if (this.hero.class === 'rogue') return ['backstab', 'dodge', 'lockpick'].includes(skill);
+                    if (this.hero.class === 'paladin') return ['heal', 'blessing', 'smite'].includes(skill);
+                    return false;
+                });
+
+                return `
+                    <div class="text-center p-6">
+                        <div class="text-4xl mb-4">${currentClass.icon}</div>
+                        <h2 class="text-xl font-bold text-on-light mb-2">Навыки ${currentClass.name}а</h2>
+                        <p class="text-sm text-gray-600 mb-6">Очков навыков: ${this.hero.skillPoints}</p>
+                        
+                        <div class="space-y-4">
+                            ${classSkills.map(([skill, level]) => `
+                                <div class="p-4 bg-white bg-opacity-95 rounded-2xl border border-gray-200 shadow-sm">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-left">
+                                            <div class="font-bold text-on-light">${this.skillNames[skill]}</div>
+                                            <div class="text-xs text-gray-600 opacity-80">${this.skillDescriptions[skill]}</div>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-sm text-on-light font-semibold">Уровень ${level}</span>
+                                            <button onclick="game.upgradeSkill('${skill}')" 
+                                                    ${this.hero.skillPoints <= 0 ? 'disabled' : ''}
+                                                    class="w-8 h-8 rounded-full text-white font-bold transition-all duration-300 ${
+                                                        this.hero.skillPoints > 0 
+                                                            ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:scale-110 active:scale-95' 
+                                                            : 'bg-gray-300 cursor-not-allowed'
+                                                    }">
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="w-full bg-gray-300 rounded-full h-3 overflow-hidden">
+                                        <div class="bg-gradient-to-r ${currentClass.color} h-full rounded-full transition-all duration-300 shadow-sm"
+                                             style="width: ${Math.min(level * 20, 100)}%"></div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            getInventoryTabHTML() {
+                const totalStats = this.getTotalStats();
+                
+                return `
+                    <div class="text-center p-6">
+                        <div class="text-5xl mb-4">🎒</div>
+                        <h2 class="text-xl font-bold text-on-light mb-6">Инвентарь</h2>
+                        
+                        <div class="flex mb-6 bg-gray-100 rounded-2xl p-1">
+                            ${['equipment', 'items', 'materials'].map(tab => `
+                                <button onclick="game.selectedSubTab = '${tab}'; game.render()" 
+                                        class="flex-1 py-2 px-4 rounded-xl transition-all duration-300 ${
+                                            this.selectedSubTab === tab 
+                                                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white' 
+                                                : 'text-gray-600 hover:bg-gray-200'
+                                        }">
+                                    ${tab === 'equipment' ? '⚔️ Снаряжение' : tab === 'items' ? '🧪 Предметы' : '🔨 Материалы'}
+                                </button>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="card-style p-6">
+                            ${this.selectedSubTab === 'equipment' ? this.getEquipmentHTML(totalStats) : 
+                              this.selectedSubTab === 'items' ? this.getItemsHTML() : 
+                              this.getMaterialsHTML()}
+                        </div>
+                    </div>
+                `;
+            }
+
+            getEquipmentHTML(totalStats) {
+                return `
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="text-center p-3 bg-red-100 border border-red-200 rounded-xl">
+                                <div class="text-red-700 font-bold text-lg">${totalStats.strength}</div>
+                                <div class="text-xs text-red-600 font-semibold">⚔️ Сила</div>
+                            </div>
+                            <div class="text-center p-3 bg-blue-100 border border-blue-200 rounded-xl">
+                                <div class="text-blue-700 font-bold text-lg">${totalStats.magic}</div>
+                                <div class="text-xs text-blue-600 font-semibold">🔮 Магия</div>
+                            </div>
+                            <div class="text-center p-3 bg-green-100 border border-green-200 rounded-xl">
+                                <div class="text-green-700 font-bold text-lg">${totalStats.agility}</div>
+                                <div class="text-xs text-green-600 font-semibold">🏃 Ловкость</div>
+                            </div>
+                            <div class="text-center p-3 bg-pink-100 border border-pink-200 rounded-xl">
+                                <div class="text-pink-700 font-bold text-lg">${totalStats.health}</div>
+                                <div class="text-xs text-pink-600 font-semibold">❤️ Здоровье</div>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            ${Object.entries(this.hero.equipment).map(([slot, itemId]) => {
+                                const item = itemId ? [...this.items.weapons, ...this.items.armor].find(i => i.id === itemId) : null;
+                                return `
+                                    <div class="flex items-center justify-between p-3 bg-white bg-opacity-95 rounded-xl border border-gray-200 shadow-sm">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-10 h-10 bg-gray-100 border border-gray-200 rounded-lg flex items-center justify-center">
+                                                ${item ? item.icon : (slot === 'weapon' ? '⚔️' : slot === 'armor' ? '🛡️' : '💍')}
+                                            </div>
+                                            <div class="text-left">
+                                                <div class="font-bold text-on-light">${item ? item.name : `${slot === 'weapon' ? 'Оружие' : slot === 'armor' ? 'Броня' : 'Аксессуар'}`}</div>
+                                                ${item ? `
+                                                    <div class="text-xs text-gray-600 opacity-80 font-medium">
+                                                        ${Object.entries(item.stats || {}).map(([stat, value]) => `${stat}: +${value}`).join(', ')}
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                        ${item ? `
+                                            <button onclick="game.unequipItem('${slot}', '${itemId}')" 
+                                                    class="text-red-500 hover:text-red-700 text-sm">
+                                                Снять
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            getItemsHTML() {
+                if (this.hero.inventory.length === 0) {
+                    return '<div class="text-gray-500 py-8">Инвентарь пуст</div>';
+                }
+
+                return `
+                    <div class="space-y-3">
+                        ${this.hero.inventory.map((item, index) => {
+                            const itemData = [...this.items.weapons, ...this.items.armor, ...this.items.potions].find(i => i.id === item.id);
+                            return `
+                                <div class="flex items-center justify-between p-3 bg-white bg-opacity-95 rounded-xl border border-gray-200 shadow-sm">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 bg-gray-100 border border-gray-200 rounded-lg flex items-center justify-center">
+                                            ${itemData?.icon || '❓'}
+                                        </div>
+                                        <div class="text-left">
+                                            <div class="font-bold text-on-light">${itemData?.name || 'Неизвестный предмет'}</div>
+                                            <div class="text-xs font-semibold ${this.getRarityColor(itemData?.rarity)}">
+                                                ${itemData?.rarity || 'common'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="space-x-2">
+                                        ${this.items.potions.find(p => p.id === item.id) ? `
+                                            <button onclick="game.useItem('${item.id}')" 
+                                                    class="px-3 py-1 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-all duration-300">
+                                                Использовать
+                                            </button>
+                                        ` : ''}
+                                        ${[...this.items.weapons, ...this.items.armor].find(i => i.id === item.id) ? `
+                                            <button onclick="game.equipItem('${item.id}')" 
+                                                    class="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-all duration-300">
+                                                Экипировать
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+
+            getMaterialsHTML() {
+                return `
+                    <div class="space-y-3">
+                        ${Object.entries(this.hero.crafting?.materials || {}).map(([material, quantity]) => {
+                            const materialData = this.items.materials.find(m => m.id === material);
+                            return `
+                                <div class="flex items-center justify-between p-3 bg-white bg-opacity-95 rounded-xl border border-gray-200 shadow-sm">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 bg-gray-100 border border-gray-200 rounded-lg flex items-center justify-center">
+                                            ${materialData?.icon || '❓'}
+                                        </div>
+                                        <div class="text-left">
+                                            <div class="font-bold text-on-light">${materialData?.name || material}</div>
+                                            <div class="text-xs text-gray-600 opacity-80 font-medium">Количество: ${quantity}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+
+            getShopTabHTML() {
+                return `
+                    <div class="text-center p-6">
+                        <div class="text-5xl mb-4">🛒</div>
+                        <h2 class="text-xl font-bold text-on-light mb-6">Магазин</h2>
+                        
+                        <div class="flex mb-6 bg-gray-100 rounded-2xl p-1">
+                            ${['weapons', 'armor', 'potions'].map(tab => `
+                                <button onclick="game.selectedSubTab = '${tab}'; game.render()" 
+                                        class="flex-1 py-2 px-4 rounded-xl transition-all duration-300 ${
+                                            this.selectedSubTab === tab 
+                                                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white' 
+                                                : 'text-gray-600 hover:bg-gray-200'
+                                        }">
+                                    ${tab === 'weapons' ? '⚔️' : tab === 'armor' ? '🛡️' : '🧪'}
+                                </button>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="card-style p-6">
+                            <div class="space-y-3">
+                                ${(this.items[this.selectedSubTab] || []).map(item => `
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
+                                                ${item.icon}
+                                            </div>
+                                            <div class="text-left">
+                                                <div class="font-medium">${item.name}</div>
+                                                <div class="text-xs text-gray-500">
+                                                    ${item.stats ? Object.entries(item.stats).map(([stat, value]) => `${stat}: +${value}`).join(', ') : 
+                                                     item.effect ? `${item.effect}: +${item.value}` : ''}
+                                                </div>
+                                                <div class="text-xs ${this.getRarityColor(item.rarity)}">
+                                                    ${item.rarity} ${item.level ? `(уровень ${item.level})` : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-yellow-600 font-semibold mb-1">${item.price} 💰</div>
+                                            <button onclick="game.buyItem('${item.id}')" 
+                                                    ${this.hero.gold < item.price || (item.level && this.hero.level < (item.level || 1)) ? 'disabled' : ''}
+                                                    class="px-3 py-1 rounded-lg text-sm font-medium transition-all duration-300 ${
+                                                        this.hero.gold >= item.price && (!item.level || this.hero.level >= (item.level || 1))
+                                                            ? 'bg-green-500 text-white hover:bg-green-600'
+                                                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                    }">
+                                                Купить
+                                            </button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            getWorldTabHTML() {
+                return `
+                    <div class="text-center p-6">
+                        <div class="text-5xl mb-4">🗺️</div>
+                        <h2 class="text-xl font-bold text-on-light mb-6">Мир</h2>
+                        
+                        <div class="space-y-4">
+                            ${Object.entries(this.locations).map(([id, location]) => `
+                                <div class="card-style p-4 rounded-2xl">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="text-2xl">${location.icon}</div>
+                                            <div class="text-left">
+                                                <div class="font-bold text-on-light">${location.name}</div>
+                                                <div class="text-sm text-gray-600">${location.description}</div>
+                                                ${!location.unlocked && location.requirement ? `
+                                                    <div class="text-xs text-red-600 font-semibold">
+                                                        Требуется ${location.requirement.level || 1} уровень
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                        <div class="space-x-2">
+                                            ${this.gameState.currentLocation === id ? `
+                                                <span class="px-3 py-1 bg-green-500 text-white rounded-full text-xs">
+                                                    Текущая
+                                                </span>
+                                            ` : ''}
+                                            ${location.unlocked && this.gameState.currentLocation !== id ? `
+                                                <button onclick="game.changeLocation('${id}')" 
+                                                        class="px-4 py-2 rounded-xl font-medium transition-all duration-300 bg-gradient-to-r from-blue-500 to-purple-600 text-on-gradient hover:scale-105 active:scale-95">
+                                                    Перейти
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            getPetsTabHTML() {
+                return `
+                    <div class="text-center p-6">
+                        <div class="text-5xl mb-4">🐾</div>
+                        <h2 class="text-xl font-bold text-on-light mb-6">Питомцы</h2>
+                        
+                        <div class="card-style p-6">
+                            ${this.hero.activePet ? `
+                                <div class="mb-6 p-4 bg-green-50 rounded-2xl">
+                                    <h3 class="font-bold text-green-800 mb-2">Активный питомец</h3>
+                                    <div class="flex items-center space-x-3">
+                                        <div class="text-2xl">${this.items.pets.find(p => p.id === this.hero.activePet)?.icon}</div>
+                                        <div class="text-left">
+                                            <div class="font-medium">${this.items.pets.find(p => p.id === this.hero.activePet)?.name}</div>
+                                            <div class="text-sm text-gray-500">
+                                                ${Object.entries(this.items.pets.find(p => p.id === this.hero.activePet)?.stats || {})
+                                                    .map(([stat, value]) => `${stat}: +${value}`).join(', ')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="space-y-3">
+                                <h3 class="font-bold text-left">Доступные питомцы</h3>
+                                ${this.items.pets.map(pet => `
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="text-2xl">${pet.icon}</div>
+                                            <div class="text-left">
+                                                <div class="font-medium">${pet.name}</div>
+                                                <div class="text-sm text-gray-500">
+                                                    ${Object.entries(pet.stats || {}).map(([stat, value]) => `${stat}: +${value}`).join(', ')}
+                                                </div>
+                                                <div class="text-xs ${this.getRarityColor(pet.rarity)}">
+                                                    ${pet.rarity}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-yellow-600 font-semibold mb-1">${pet.price} 💰</div>
+                                            <button onclick="game.handlePet('${pet.id}')" 
+                                                    ${this.hero.gold < pet.price && !this.hero.pets.includes(pet.id) ? 'disabled' : ''}
+                                                    class="px-3 py-1 rounded-lg text-sm font-medium transition-all duration-300 ${
+                                                        this.hero.pets.includes(pet.id) 
+                                                            ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                                                            : this.hero.gold >= pet.price
+                                                            ? 'bg-green-500 text-white hover:bg-green-600'
+                                                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                    }">
+                                                ${this.hero.pets.includes(pet.id) ? 'Активировать' : 'Купить'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            getCraftTabHTML() {
+                return `
+                    <div class="text-center p-6">
+                        <div class="text-5xl mb-4">🔨</div>
+                        <h2 class="text-xl font-bold text-on-light mb-6">Крафт</h2>
+                        
+                        <div class="card-style p-6">
+                            <div class="space-y-4">
+                                ${Object.entries(this.craftingRecipes).map(([id, recipe]) => `
+                                    <div class="p-4 bg-gray-50 rounded-2xl">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <div class="flex items-center space-x-3">
+                                                <div class="text-2xl">${recipe.icon}</div>
+                                                <div class="text-left">
+                                                    <div class="font-medium">${recipe.name}</div>
+                                                    <div class="text-sm text-gray-500">
+                                                        Результат: ${recipe.result.quantity}x ${recipe.name}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button onclick="game.craftItem('${id}')" 
+                                                    class="px-4 py-2 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-all duration-300">
+                                                Создать
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="text-left">
+                                            <div class="text-sm font-medium mb-2">Необходимые материалы:</div>
+                                            <div class="space-y-1">
+                                                ${Object.entries(recipe.materials).map(([material, required]) => {
+                                                    const available = (this.hero.crafting?.materials || {})[material] || 0;
+                                                    const hasEnough = available >= required;
+                                                    return `
+                                                        <div class="flex justify-between text-sm ${hasEnough ? 'text-green-600' : 'text-red-600'}">
+                                                            <span>${this.items.materials.find(m => m.id === material)?.name || material}</span>
+                                                            <span>${available}/${required}</span>
+                                                        </div>
+                                                    `;
+                                                }).join('')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            getAchievementsTabHTML() {
+                return `
+                    <div class="text-center p-6">
+                        <div class="text-5xl mb-4">🏆</div>
+                        <h2 class="text-xl font-bold text-on-light mb-6">Достижения</h2>
+                        
+                        <div class="card-style p-6">
+                            <div class="space-y-3">
+                                ${this.achievements.map(achievement => {
+                                    const unlocked = this.hero.achievements.includes(achievement.id);
+                                    return `
+                                        <div class="p-4 rounded-2xl ${unlocked ? 'bg-green-50' : 'bg-gray-50'}">
+                                            <div class="flex items-center space-x-3">
+                                                <div class="text-2xl ${unlocked ? '' : 'grayscale'}">${achievement.icon}</div>
+                                                <div class="text-left flex-1">
+                                                    <div class="font-medium ${unlocked ? 'text-green-800' : 'text-gray-600'}">
+                                                        ${achievement.name}
+                                                    </div>
+                                                    <div class="text-sm ${unlocked ? 'text-green-600' : 'text-gray-500'}">
+                                                        ${achievement.description}
+                                                    </div>
+                                                    ${unlocked ? `
+                                                        <div class="text-xs text-green-500 mt-1">
+                                                            Награда: ${achievement.reward.gold ? `${achievement.reward.gold} золота` : ''} 
+                                                            ${achievement.reward.exp ? ` ${achievement.reward.exp} опыта` : ''}
+                                                            ${achievement.reward.skillPoints ? ` ${achievement.reward.skillPoints} очков навыков` : ''}
+                                                        </div>
+                                                    ` : ''}
+                                                </div>
+                                                ${unlocked ? '<div class="text-green-500 text-xl">✅</div>' : ''}
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            getNavigationHTML() {
+                const tabs = [
+                    { id: 'main', icon: '🏠' },
+                    { id: 'skills', icon: '⭐' },
+                    { id: 'inventory', icon: '🎒' },
+                    { id: 'shop', icon: '🛒' },
+                    { id: 'world', icon: '🗺️' },
+                    { id: 'pets', icon: '🐾' },
+                    { id: 'craft', icon: '🔨' },
+                    { id: 'achievements', icon: '🏆' }
+                ];
+
+                return `
+                    <div class="p-2 flex-shrink-0">
+                        <div class="card-style py-2 px-3">
+                            <div class="flex justify-around items-center">
+                                ${tabs.map(tab => `
+                                    <button onclick="game.currentTab = '${tab.id}'; game.render()" 
+                                            class="w-10 h-10 rounded-xl transition-all duration-300 relative flex items-center justify-center ${
+                                                this.currentTab === tab.id 
+                                                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white scale-110' 
+                                                    : 'text-gray-600 hover:bg-gray-100 active:scale-95'
+                                            }"
+                                            style="box-shadow: ${this.currentTab === tab.id ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none'}">
+                                        <div class="text-lg">${tab.icon}</div>
+                                        
+                                        ${tab.id === 'skills' && this.hero.skillPoints > 0 ? `
+                                            <div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                                <span class="text-xs text-white font-bold">${this.hero.skillPoints}</span>
+                                            </div>
+                                        ` : ''}
+                                        ${tab.id === 'achievements' && this.hero.achievements.length > 0 ? `
+                                            <div class="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
+                                                <span class="text-xs text-white font-bold">${this.hero.achievements.length}</span>
+                                            </div>
+                                        ` : ''}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            unequipItem(slot, itemId) {
+                this.hero.equipment[slot] = null;
+                this.hero.inventory.push({ id: itemId, quantity: 1 });
+                this.saveHero();
+                this.render();
+            }
+
+            handlePet(petId) {
+                if (this.hero.pets.includes(petId)) {
+                    this.hero.activePet = petId;
+                    this.addNotification(`🐾 ${this.items.pets.find(p => p.id === petId).name}`, 'success');
+                } else if (this.hero.gold >= this.items.pets.find(p => p.id === petId).price) {
+                    const pet = this.items.pets.find(p => p.id === petId);
+                    this.hero.gold -= pet.price;
+                    this.hero.pets.push(petId);
+                    this.hero.activePet = petId;
+                    this.addNotification(`🐾 ${pet.name}`, 'success');
+                }
+                this.saveHero();
+                this.render();
+            }
+
+            craftItem(recipeId) {
+                const recipe = this.craftingRecipes[recipeId];
+                if (!recipe) return;
+
+                // Check materials
+                for (const [material, required] of Object.entries(recipe.materials)) {
+                    if ((this.hero.crafting.materials[material] || 0) < required) {
+                        this.addNotification(`Недостаточно материалов: ${material}`, 'warning');
+                        return;
+                    }
+                }
+
+                // Consume materials
+                for (const [material, required] of Object.entries(recipe.materials)) {
+                    this.hero.crafting.materials[material] -= required;
+                }
+
+                // Add crafted item
+                this.hero.inventory.push(recipe.result);
+                this.saveHero();
+                this.addNotification(`🔨 ${recipe.name}`, 'success');
+            }
+
+            changeLocation(locationId) {
+                const location = this.locations[locationId];
+                if (!location || !location.unlocked) {
+                    this.addNotification(`Локация заблокирована! Требуется ${location?.requirement?.level || 1} уровень`, 'warning');
+                    return;
+                }
+                
+                this.gameState.currentLocation = locationId;
+                this.addNotification(`🗺️ ${location.name}`, 'info');
+                this.render();
+            }
+
+            getRarityColor(rarity) {
+                switch (rarity) {
+                    case 'common': return 'text-gray-600';
+                    case 'uncommon': return 'text-green-600';
+                    case 'rare': return 'text-blue-600';
+                    case 'legendary': return 'text-purple-600';
+                    default: return 'text-gray-600';
+                }
+            }
+
+            attachEventListeners() {
+                // Touch/swipe handling for navigation
+                let touchStartX = null;
+                let touchEndX = null;
+
+                const handleTouchStart = (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                };
+
+                const handleTouchEnd = (e) => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    handleSwipe();
+                };
+
+                const handleSwipe = () => {
+                    if (!touchStartX || !touchEndX) return;
+                    
+                    const difference = touchStartX - touchEndX;
+                    const minSwipeDistance = 50;
+
+                    const tabs = ['main', 'skills', 'inventory', 'shop', 'world', 'pets', 'craft', 'achievements'];
+                    const currentIndex = tabs.indexOf(this.currentTab);
+
+                    if (Math.abs(difference) > minSwipeDistance) {
+                        if (difference > 0 && currentIndex < tabs.length - 1) {
+                            // Swipe left - go to next tab
+                            this.currentTab = tabs[currentIndex + 1];
+                            this.render();
+                        } else if (difference < 0 && currentIndex > 0) {
+                            // Swipe right - go to previous tab
+                            this.currentTab = tabs[currentIndex - 1];
+                            this.render();
+                        }
+                    }
+                };
+
+                document.addEventListener('touchstart', handleTouchStart, { passive: true });
+                document.addEventListener('touchend', handleTouchEnd, { passive: true });
+            }
+
+            // Game data
+            heroClasses = {
+                warrior: {
+                    name: 'Воин',
+                    icon: '⚔️',
+                    description: 'Сильный боец ближнего боя',
+                    baseStats: { strength: 8, magic: 2, agility: 5 },
+                    color: 'from-red-500 to-orange-500'
+                },
+                mage: {
+                    name: 'Маг',
+                    icon: '🔮',
+                    description: 'Владеет магией и заклинаниями',
+                    baseStats: { strength: 3, magic: 8, agility: 4 },
+                    color: 'from-blue-500 to-purple-500'
+                },
+                rogue: {
+                    name: 'Вор',
+                    icon: '🗡️',
+                    description: 'Быстрый и ловкий, мастер скрытности',
+                    baseStats: { strength: 5, magic: 3, agility: 8 },
+                    color: 'from-gray-500 to-gray-700'
+                },
+                paladin: {
+                    name: 'Паладин',
+                    icon: '🛡️',
+                    description: 'Святой воин с способностями лечения',
+                    baseStats: { strength: 6, magic: 6, agility: 3 },
+                    color: 'from-yellow-400 to-white'
+                }
+            };
+
+            items = {
+                weapons: [
+                    { id: 'sword', name: 'Меч', icon: '⚔️', stats: { strength: 3 }, price: 50, rarity: 'common', level: 1 },
+                    { id: 'staff', name: 'Посох', icon: '🪄', stats: { magic: 4 }, price: 60, rarity: 'common', level: 1 },
+                    { id: 'dagger', name: 'Кинжал', icon: '🗡️', stats: { agility: 3 }, price: 40, rarity: 'common', level: 1 },
+                    { id: 'hammer', name: 'Молот', icon: '🔨', stats: { strength: 5 }, price: 80, rarity: 'uncommon', level: 3 },
+                    { id: 'magicSword', name: 'Магический меч', icon: '✨', stats: { strength: 4, magic: 2 }, price: 120, rarity: 'rare', level: 5 }
+                ],
+                armor: [
+                    { id: 'leather', name: 'Кожаная броня', icon: '🦺', stats: { health: 20 }, price: 30, rarity: 'common', level: 1 },
+                    { id: 'chain', name: 'Кольчуга', icon: '🛡️', stats: { health: 40 }, price: 70, rarity: 'uncommon', level: 3 },
+                    { id: 'plate', name: 'Латы', icon: '🛡️', stats: { health: 60 }, price: 120, rarity: 'rare', level: 5 }
+                ],
+                potions: [
+                    { id: 'healPotion', name: 'Зелье лечения', icon: '🧪', effect: 'heal', value: 50, price: 25, stackable: true },
+                    { id: 'strengthPotion', name: 'Зелье силы', icon: '💪', effect: 'strength', value: 5, price: 40, stackable: true },
+                    { id: 'energyPotion', name: 'Зелье энергии', icon: '⚡', effect: 'energy', value: 3, price: 30, stackable: true }
+                ],
+                materials: [
+                    { id: 'wood', name: 'Дерево', icon: '🪵', price: 5, stackable: true },
+                    { id: 'stone', name: 'Камень', icon: '🪨', price: 8, stackable: true },
+                    { id: 'herbs', name: 'Травы', icon: '🌿', price: 10, stackable: true },
+                    { id: 'crystals', name: 'Кристаллы', icon: '💎', price: 25, stackable: true }
+                ],
+                pets: [
+                    { id: 'wolf', name: 'Волк', icon: '🐺', stats: { strength: 2 }, price: 100, rarity: 'common' },
+                    { id: 'dragon', name: 'Дракон', icon: '🐉', stats: { magic: 3 }, price: 500, rarity: 'legendary' },
+                    { id: 'phoenix', name: 'Феникс', icon: '🔥', stats: { agility: 2, magic: 1 }, price: 300, rarity: 'rare' }
+                ]
+            };
+
+            locations = {
+                dungeon: {
+                    name: 'Подземелье',
+                    icon: '🏰',
+                    description: 'Темные коридоры полные опасностей',
+                    events: ['monster', 'treasure', 'puzzle'],
+                    background: 'linear-gradient(to bottom, #1a1a2e, #16213e)',
+                    unlocked: true
+                },
+                forest: {
+                    name: 'Лес',
+                    icon: '🌲',
+                    description: 'Густой лес с дикими животными',
+                    events: ['monster', 'treasure', 'fishing'],
+                    background: 'linear-gradient(to bottom, #134e5e, #71b280)',
+                    unlocked: true
+                },
+                desert: {
+                    name: 'Пустыня',
+                    icon: '🏜️',
+                    description: 'Жаркая пустыня с древними руинами',
+                    events: ['monster', 'treasure', 'shrine'],
+                    background: 'linear-gradient(to bottom, #ff9068, #fd746c)',
+                    unlocked: false,
+                    requirement: { level: 5 }
+                },
+                mountains: {
+                    name: 'Горы',
+                    icon: '⛰️',
+                    description: 'Высокие горы с драконами',
+                    events: ['monster', 'treasure', 'boss'],
+                    background: 'linear-gradient(to bottom, #667eea, #764ba2)',
+                    unlocked: false,
+                    requirement: { level: 10 }
+                },
+                city: {
+                    name: 'Город',
+                    icon: '🏙️',
+                    description: 'Торговый город с NPC',
+                    events: ['trader', 'quest', 'arena'],
+                    background: 'linear-gradient(to bottom, #4b6cb7, #182848)',
+                    unlocked: true
+                }
+            };
+
+            weatherEffects = {
+                clear: { name: 'Ясно', icon: '☀️', effects: {} },
+                rain: { name: 'Дождь', icon: '🌧️', effects: { agility: -1, fishing: +2 } },
+                storm: { name: 'Буря', icon: '⛈️', effects: { magic: +2, energy: -1 } },
+                fog: { name: 'Туман', icon: '🌫️', effects: { monster: +1, treasure: -1 } }
+            };
+
+            events = {
+                monster: [
+                    { 
+                        name: 'Хитрый Гоблин', 
+                        strength: 4, magic: 2, agility: 6,
+                        health: 30, maxHealth: 30,
+                        weakness: 'magic',
+                        reward: { gold: 20, exp: 25 },
+                        description: 'Быстрый и ловкий, но уязвим к магии'
+                    },
+                    { 
+                        name: 'Каменный Голем', 
+                        strength: 8, magic: 1, agility: 2,
+                        health: 80, maxHealth: 80,
+                        weakness: 'agility',
+                        reward: { gold: 40, exp: 35 },
+                        description: 'Очень сильный, но медленный'
+                    }
+                ],
+                treasure: [
+                    { name: 'Сундук с Золотом', reward: { gold: 60 } },
+                    { name: 'Древний Свиток', reward: { exp: 50 } },
+                    { name: 'Магический Кристалл', reward: { gold: 40, exp: 30 } }
+                ]
+            };
+
+            battleActions = {
+                attack: { name: 'Атака', icon: '⚔️', cost: 1, damage: 'strength', description: 'Базовая атака' },
+                magic: { name: 'Магия', icon: '🔮', cost: 2, damage: 'magic', description: 'Магическая атака' },
+                special: { name: 'Особая', icon: '✨', cost: 3, effect: 'special', description: 'Мощная атака на основе ловкости' },
+                heal: { name: 'Лечение', icon: '❤️', cost: 2, effect: 'heal', description: 'Восстанавливает здоровье' }
+            };
+
+            skillNames = {
+                powerStrike: 'Мощный удар', toughness: 'Стойкость', berserker: 'Берсерк',
+                fireball: 'Огненный шар', shield: 'Магический щит', wisdom: 'Мудрость',
+                backstab: 'Удар в спину', dodge: 'Уклонение', lockpick: 'Взлом',
+                heal: 'Исцеление', blessing: 'Благословение', smite: 'Кара'
+            };
+
+            skillDescriptions = {
+                powerStrike: 'Увеличивает урон от атак', toughness: 'Увеличивает максимальное здоровье',
+                berserker: 'Увеличивает урон при низком здоровье', fireball: 'Увеличивает урон от магии',
+                shield: 'Уменьшает получаемый урон', wisdom: 'Увеличивает получаемый опыт',
+                backstab: 'Критический урон сзади', dodge: 'Шанс уклонения от атак',
+                lockpick: 'Больше сокровищ из сундуков', heal: 'Лечит в бою',
+                blessing: 'Усиливает союзников', smite: 'Дополнительный урон нежити'
+            };
+
+            achievements = [
+                { id: 'firstKill', name: 'Первая кровь', description: 'Победи первого монстра', icon: '⚔️', reward: { gold: 50, exp: 25 } },
+                { id: 'level5', name: 'Опытный', description: 'Достигни 5 уровня', icon: '⭐', reward: { gold: 100, exp: 50 } },
+                { id: 'richie', name: 'Богач', description: 'Накопи 1000 золота', icon: '💰', reward: { skillPoints: 2 } }
+            ];
+
+            craftingRecipes = {
+                healthPotion: {
+                    name: 'Зелье лечения', icon: '🧪',
+                    materials: { herbs: 2, crystals: 1 },
+                    result: { id: 'healPotion', quantity: 1 }
+                },
+                strengthPotion: {
+                    name: 'Зелье силы', icon: '💪',
+                    materials: { herbs: 1, stone: 2 },
+                    result: { id: 'strengthPotion', quantity: 1 }
+                }
+            };
+        }
+
+        // Initialize game
+        const game = new GameState();
+    </script>
+</body>
+</html>
